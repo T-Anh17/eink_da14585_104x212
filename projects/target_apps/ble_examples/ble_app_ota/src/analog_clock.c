@@ -14,54 +14,54 @@
 #include "fonts.h"
 #include <math.h>
 
-// 数学常量
+// Hằng số toán học
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 /**
- * @brief 绘制时钟外框和刻度
- * @param center_x 时钟中心X坐标
- * @param center_y 时钟中心Y坐标
- * @param radius 时钟半径
- * @param force_redraw 是否强制重绘所有元素
+ * @brief Vẽ khung đồng hồ và các vạch chia
+ * @param center_x Tọa độ X tâm đồng hồ
+ * @param center_y Tọa độ Y tâm đồng hồ
+ * @param radius Bán kính đồng hồ
+ * @param force_redraw Có bắt buộc vẽ lại tất cả các phần tử hay không
  */
 static void draw_clock_frame(uint16_t center_x, uint16_t center_y, uint16_t radius, bool force_redraw)
 {
-    if (!force_redraw) return; // 非强制重绘时跳过框架绘制
+    if (!force_redraw) return; // Bỏ qua vẽ khung khi không bắt buộc vẽ lại
     
-    // 绘制外圆框
+    // Vẽ khung tròn bên ngoài
     Paint_DrawCircle(center_x, center_y, radius, BLACK, DOT_PIXEL_2X2, DRAW_FILL_EMPTY);
     
-    // 绘制12个小时数字和刻度点
+    // Vẽ 12 số giờ và các điểm vạch chia
     for (uint8_t hour = 1; hour <= 12; hour++)
     {
-        double angle = (hour * 30 - 90) * M_PI / 180.0; // 12点为0度，顺时针
+        double angle = (hour * 30 - 90) * M_PI / 180.0; // 12 giờ là 0 độ, theo chiều kim đồng hồ
         
-        // 计算数字位置（稍微内缩）
+        // Tính toán vị trí con số (hơi lùi vào trong)
         uint16_t num_x = center_x + (radius - 15) * cos(angle);
         uint16_t num_y = center_y + (radius - 15) * sin(angle);
         
-        // 绘制小时数字
+        // Vẽ con số giờ
         char hour_str[3];
         sprintf(hour_str, "%d", hour);
         
-        // 根据数字位置调整显示位置，使数字居中
+        // Điều chỉnh vị trí hiển thị theo vị trí con số để căn giữa
         uint16_t text_x = num_x - (hour >= 10 ? 7 : 3);
         uint16_t text_y = num_y - 6;
         
         EPD_DrawUTF8(text_x, text_y, 0, hour_str, EPD_ASCII_7X12, 0, BLACK, WHITE);
         
-        // 绘制小时刻度点（在数字外侧）
+        // Vẽ điểm vạch chia giờ (mặt ngoài của con số)
         uint16_t tick_x = center_x + (radius - 8) * cos(angle);
         uint16_t tick_y = center_y + (radius - 8) * sin(angle);
         Paint_DrawPoint(tick_x, tick_y, BLACK, DOT_PIXEL_2X2, DOT_STYLE_DFT);
     }
     
-    // 绘制分钟刻度点（小点）
+    // Vẽ điểm vạch chia phút (điểm nhỏ)
     for (uint8_t minute = 0; minute < 60; minute++)
     {
-        if (minute % 5 != 0) // 跳过小时刻度位置
+        if (minute % 5 != 0) // Bỏ qua vị trí vạch chia giờ
         {
             double angle = (minute * 6 - 90) * M_PI / 180.0;
             uint16_t tick_x = center_x + (radius - 5) * cos(angle);
@@ -70,98 +70,98 @@ static void draw_clock_frame(uint16_t center_x, uint16_t center_y, uint16_t radi
         }
     }
     
-    // 绘制中心点
+    // Vẽ điểm tâm
     Paint_DrawPoint(center_x, center_y, BLACK, DOT_PIXEL_3X3, DOT_STYLE_DFT);
 }
 
 /**
- * @brief 清除指针区域（用于局部刷新前清除旧指针）
- * @param center_x 时钟中心X坐标
- * @param center_y 时钟中心Y坐标
- * @param radius 时钟半径
+ * @brief Xóa vùng kim (dùng để xóa kim cũ trước khi làm mới cục bộ)
+ * @param center_x Tọa độ X tâm đồng hồ
+ * @param center_y Tọa độ Y tâm đồng hồ
+ * @param radius Bán kính đồng hồ
  */
 static void clear_hands_area(uint16_t center_x, uint16_t center_y, uint16_t radius)
 {
-    // 清除指针可能经过的圆形区域（不包括外框）
+    // Xóa vùng hình tròn mà kim có thể đi qua (không bao gồm khung ngoài)
     Paint_DrawCircle(center_x, center_y, radius - 10, WHITE, DOT_PIXEL_1X1, DRAW_FILL_FULL);
 }
 
 /**
- * @brief 绘制时钟指针
- * @param center_x 时钟中心X坐标
- * @param center_y 时钟中心Y坐标
- * @param hour 小时 (0-23)
- * @param minute 分钟 (0-59)
- * @param radius 时钟半径
+ * @brief Vẽ các kim đồng hồ
+ * @param center_x Tọa độ X tâm đồng hồ
+ * @param center_y Tọa độ Y tâm đồng hồ
+ * @param hour Giờ (0-23)
+ * @param minute Phút (0-59)
+ * @param radius Bán kính đồng hồ
  */
 static void draw_clock_hands(uint16_t center_x, uint16_t center_y, uint8_t hour, uint8_t minute, uint16_t radius)
 {
-    // 计算指针角度（12点为0度，顺时针为正）
+    // Tính toán góc của kim (12 giờ là 0 độ, chiều kim đồng hồ là dương)
     double hour_angle = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
     double minute_angle = (minute * 6 - 90) * M_PI / 180.0;
     
-    // 指针长度
-    uint16_t hour_hand_length = radius * 0.5;   // 时针长度为半径的50%
-    uint16_t minute_hand_length = radius * 0.7; // 分针长度为半径的70%
+    // Độ dài các kim
+    uint16_t hour_hand_length = radius * 0.5;   // Kim giờ dài bằng 50% bán kính
+    uint16_t minute_hand_length = radius * 0.7; // Kim phút dài bằng 70% bán kính
     
-    // 计算时针终点
+    // Tính điểm cuối kim giờ
     uint16_t hour_end_x = center_x + hour_hand_length * cos(hour_angle);
     uint16_t hour_end_y = center_y + hour_hand_length * sin(hour_angle);
     
-    // 计算分针终点
+    // Tính điểm cuối kim phút
     uint16_t minute_end_x = center_x + minute_hand_length * cos(minute_angle);
     uint16_t minute_end_y = center_y + minute_hand_length * sin(minute_angle);
     
-    // 绘制时针（较粗）
+    // Vẽ kim giờ (dày hơn)
     Paint_DrawLine(center_x, center_y, hour_end_x, hour_end_y, BLACK, DOT_PIXEL_4X4, LINE_STYLE_SOLID);
     
-    // 绘制分针（较细）
+    // Vẽ kim phút (mỏng hơn)
     Paint_DrawLine(center_x, center_y, minute_end_x, minute_end_y, BLACK, DOT_PIXEL_2X2, LINE_STYLE_SOLID);
     
-    // 重新绘制中心点（确保在指针之上）
+    // Vẽ lại điểm tâm (đảm bảo nằm trên các kim)
     Paint_DrawPoint(center_x, center_y, BLACK, DOT_PIXEL_3X3, DOT_STYLE_DFT);
 }
 
 /**
- * @brief 绘制模拟时钟
- * @param x 时钟左上角X坐标
- * @param y 时钟左上角Y坐标
- * @param size 时钟正方形边长
- * @param unix_time 当前Unix时间戳
- * @param force_redraw 是否强制重绘所有元素（true：完全重绘，false：仅更新指针）
+ * @brief Vẽ đồng hồ kim
+ * @param x Tọa độ X góc trên bên trái đồng hồ
+ * @param y Tọa độ Y góc trên bên trái đồng hồ
+ * @param size Độ dài cạnh hình vuông của đồng hồ
+ * @param unix_time Dấu thời gian Unix hiện tại
+ * @param force_redraw Có bắt buộc vẽ lại tất cả các phần tử hay không (true: vẽ lại hoàn toàn, false: chỉ cập nhật các kim)
  */
 void draw_analog_clock(uint16_t x, uint16_t y, uint16_t size, uint32_t unix_time, bool force_redraw)
 {
     tm_t tm;
     transformTime(unix_time, &tm);
     
-    // 计算时钟中心和半径
+    // Tính toán tâm và bán kính đồng hồ
     uint16_t center_x = x + size / 2;
     uint16_t center_y = y + size / 2;
-    uint16_t radius = size / 2 - 2; // 留出边距
+    uint16_t radius = size / 2 - 2; // Để lại lề
     
     if (force_redraw)
     {
-        // 强制重绘：清空整个时钟区域
+        // Bắt buộc vẽ lại: xóa toàn bộ vùng đồng hồ
         Paint_DrawRectangle(x, y, x + size, y + size, WHITE, DOT_PIXEL_1X1, DRAW_FILL_FULL);
         
-        // 绘制时钟框架和数字
+        // Vẽ khung đồng hồ và các con số
         draw_clock_frame(center_x, center_y, radius, true);
     }
     else
     {
-        // 局部刷新：仅清除指针区域
+        // Làm mới cục bộ: chỉ xóa vùng các kim
         clear_hands_area(center_x, center_y, radius);
     }
     
-    // 绘制指针
+    // Vẽ các kim
     draw_clock_hands(center_x, center_y, tm.tm_hour, tm.tm_min, radius);
 }
 
 /**
- * @brief 绘制带模拟时钟的日历页面
- * @param unix_time 当前Unix时间戳
- * @param force_redraw 是否强制重绘时钟
+ * @brief Vẽ trang lịch kèm đồng hồ kim
+ * @param unix_time Dấu thời gian Unix hiện tại
+ * @param force_redraw Có bắt buộc vẽ lại đồng hồ hay không
  */
 void draw_calendar_with_analog_clock(uint32_t unix_time, bool force_redraw)
 {
@@ -174,15 +174,15 @@ void draw_calendar_with_analog_clock(uint32_t unix_time, bool force_redraw)
     
     if (force_redraw)
     {
-        // 完全重绘时清空画布
+        // Xóa canvas khi vẽ lại hoàn toàn
         Paint_Clear(WHITE);
         
-        // 绘制日历标题
+        // Vẽ tiêu đề lịch
         char title_buf[20];
         sprintf(title_buf, "%d / %d", year, month);
         EPD_DrawUTF8(20, 0, 1, title_buf, EPD_ASCII_11X16, 0, BLACK, WHITE);
         
-        // 绘制星期标题行
+        // Vẽ hàng tiêu đề các thứ trong tuần
         const char* week_names_vi[] = {"CN", "T2", "T3", "T4", "T5", "T6", "T7"};
         uint8_t x_start = 0;
         uint8_t y_pos =20;
@@ -194,30 +194,30 @@ void draw_calendar_with_analog_clock(uint32_t unix_time, bool force_redraw)
             EPD_DrawUTF8(x_pos + 8, y_pos, 0, week_names_vi[i], EPD_ASCII_7X12, 0, BLACK, WHITE);
         }
         
-        // 绘制日历网格
+        // Vẽ lưới lịch
         uint8_t y_start = 40;
         uint8_t cell_height = 12;
         uint8_t grid_width = 7 * cell_width;
         uint8_t grid_height = 7 * cell_height;
-        /*
-        // 绘制水平线
+       
+        // Vẽ các đường nằm ngang
         for (uint8_t i = 0; i <= 6; i++)
         {
             uint8_t y = y_start + i * cell_height;
             Paint_DrawLine(x_start, y, x_start + grid_width, y, BLACK, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
         }
         
-        // 绘制垂直线
+        // Vẽ các đường thẳng đứng
         for (uint8_t i = 0; i <= 7; i++)
         {
             uint8_t x = x_start + i * cell_width;
             Paint_DrawLine(x, y_start, x, y_start + grid_height, BLACK, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
         }
-        */
-        // 绘制日期数字
+      
+        // Vẽ các con số ngày
         const uint8_t days_in_month[2][12] = {
-            {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}, // 非闰年
-            {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}  // 闰年
+            {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}, // Năm thường
+            {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}  // Năm nhuận
         };
         
         uint8_t leap = is_leap(year);
@@ -237,7 +237,7 @@ void draw_calendar_with_analog_clock(uint32_t unix_time, bool force_redraw)
             
             if (day == current_day)
             {
-                // 当前日期反色显示
+                // Hiển thị nghịch màu cho ngày hiện tại
                 Paint_DrawRectangle(x_start + col * cell_width + 6, 
                                   y_start + row * cell_height + 3,
                                   x_start + (col + 1) * cell_width - 3,
@@ -259,9 +259,9 @@ void draw_calendar_with_analog_clock(uint32_t unix_time, bool force_redraw)
         }
     }
     
-    // 在右下角绘制模拟时钟（120x120像素）
-    uint16_t clock_x = 115; // 适合290宽度屏幕的位置
-    uint16_t clock_y = 10;  // 垂直居中位置
+    // Vẽ đồng hồ kim ở góc dưới bên phải (120x120 pixel)
+    uint16_t clock_x = 115; // Vị trí phù hợp cho màn hình rộng 290
+    uint16_t clock_y = 10;  // Vị trí căn giữa theo chiều dọc
     uint16_t clock_size = 95;
     
     draw_analog_clock(clock_x, clock_y, clock_size, unix_time, force_redraw);

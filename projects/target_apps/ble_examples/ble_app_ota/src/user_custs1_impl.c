@@ -170,10 +170,6 @@ void do_display_update_with_analog_clock(void)
         case DISPLAY_MODE_CALENDAR_ANALOG:
             draw_calendar_with_analog_clock(current_unix_time, force_redraw || minute_changed);
             break;
-            
-        case DISPLAY_MODE_CLOCK:
-            draw_analog_clock(65, 1, 120, current_unix_time, force_redraw || minute_changed);
-            break;
 
         case DISPLAY_MODE_FABRIC_RECORD:
             draw_fabric_record_page(&current_fabric_record, force_redraw || minute_changed);
@@ -185,16 +181,12 @@ void do_display_update_with_analog_clock(void)
             break;
     }
     
-    // 1. Khung pin (14x7)
-		Paint_DrawRectangle(196, 4, 210, 11, BLACK, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-
-		// Đầu cực
-		Paint_DrawRectangle(212, 6, 211, 10, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL);
-
-		// 2. Ruột pin
-		if (cur_batt_level > 0) {
-				// chiều rộng fill ~10px
-				Paint_DrawRectangle(198, 6, 198 + (cur_batt_level * 10 / 100), 10, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL);
+		// Vê giao dien pin dung chung
+		Paint_DrawRectangle(196, 4, 210, 11, BLACK, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);  // Khung pin (14x7)
+		Paint_DrawRectangle(212, 6, 211, 10, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL); 		// Đầu cực
+		if (cur_batt_level > 0)		// 2. Ruột pin
+		{
+				Paint_DrawRectangle(198, 6, 198 + (cur_batt_level * 10 / 100), 10, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL); 				// chiều rộng fill ~10px
 		}
     
     // // 3. Hiển thị số bằng EPD_DrawUTF8 vào TRONG khung
@@ -519,15 +511,7 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
         step = 1;
         display();
         break;
-    case 0xE6: // Chuyển sang chế độ hiển thị đồng hồ kim (toàn màn hình)
-        current_display_mode = DISPLAY_MODE_CLOCK;
-        last_update_time = 0; // Buộc vẽ lại
-        do_display_update_with_analog_clock();
-        is_part = 0;
-        step = 1;
-        display();
-        break;
-    case 0xE7: // Chuyển sang chế độ hiển thị thẻ kho / ghi chép xả vải
+    case 0xE6: // Chuyển sang chế độ hiển thị thẻ kho / ghi chép xả vải
         current_display_mode = DISPLAY_MODE_FABRIC_RECORD;
         last_update_time = 0; // Buộc vẽ lại
         do_display_update_with_analog_clock();
@@ -546,7 +530,6 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
             else if (mode_idx == 0x01) current_display_mode = DISPLAY_MODE_CALENDAR;
             else if (mode_idx == 0x02) current_display_mode = DISPLAY_MODE_TIME;
             else if (mode_idx == 0x03) current_display_mode = DISPLAY_MODE_CALENDAR_ANALOG;
-            else if (mode_idx == 0x04) current_display_mode = DISPLAY_MODE_CLOCK;
             else if (mode_idx == 0x05) current_display_mode = DISPLAY_MODE_FABRIC_RECORD;
             
             last_update_time = 0;
@@ -649,18 +632,7 @@ void user_svc2_wr_ind_handler(ke_msg_id_t const msgid,
         display();
         arch_printf("Switched to CALENDAR ANALOG display mode\n");
     }
-    else if (param->value[0] == 0xE6)
-    {
-        // Thêm mới: Chuyển sang chế độ hiển thị đồng hồ kim (toàn màn hình)
-        current_display_mode = DISPLAY_MODE_CLOCK;
-        last_update_time = 0; // Buộc vẽ lại
-        do_display_update_with_analog_clock();
-        is_part = 0;
-        step = 1;
-        display();
-        arch_printf("Switched to CLOCK display mode\n");
-    }
-    else if (param->value[0] == 0xE7) 
+    else if (param->value[0] == 0xE6) 
     {
         current_display_mode = DISPLAY_MODE_FABRIC_RECORD;
         last_update_time = 0;
@@ -683,8 +655,7 @@ void user_svc2_wr_ind_handler(ke_msg_id_t const msgid,
             else if (mode_idx == 0x01) current_display_mode = DISPLAY_MODE_CALENDAR;
             else if (mode_idx == 0x02) current_display_mode = DISPLAY_MODE_TIME;
             else if (mode_idx == 0x03) current_display_mode = DISPLAY_MODE_CALENDAR_ANALOG;
-            else if (mode_idx == 0x04) current_display_mode = DISPLAY_MODE_CLOCK;
-            else if (mode_idx == 0x05) current_display_mode = DISPLAY_MODE_FABRIC_RECORD;
+            else if (mode_idx == 0x04) current_display_mode = DISPLAY_MODE_FABRIC_RECORD;
             
             last_update_time = 0;
             do_display_update_with_analog_clock();

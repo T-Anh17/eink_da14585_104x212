@@ -11,25 +11,27 @@
 #ifndef __ANALOG_CLOCK_H
 #define __ANALOG_CLOCK_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+
 
 /**
- * @brief 绘制模拟时钟
- * @param x 时钟左上角X坐标
- * @param y 时钟左上角Y坐标
- * @param size 时钟正方形边长
- * @param unix_time 当前Unix时间戳
- * @param force_redraw 是否强制重绘所有元素（true：完全重绘，false：仅更新指针）
+ * @brief Vẽ đồng hồ kim
+ * @param x Tọa độ X góc trên bên trái đồng hồ
+ * @param y Tọa độ Y góc trên bên trái đồng hồ
+ * @param size Độ dài cạnh hình vuông của đồng hồ
+ * @param unix_time Dấu thời gian Unix hiện tại
+ * @param force_redraw Có bắt buộc vẽ lại tất cả các phần tử hay không (true: vẽ
+ * lại hoàn toàn, false: chỉ cập nhật các kim)
  */
-void draw_analog_clock(uint16_t x, uint16_t y, uint16_t size, uint32_t unix_time, bool force_redraw);
+void draw_analog_clock(uint16_t x, uint16_t y, uint16_t size,
+                       uint32_t unix_time, bool force_redraw);
 
 /**
- * @brief 绘制带模拟时钟的日历页面
- * @param unix_time 当前Unix时间戳
- * @param force_redraw 是否强制重绘时钟
+ * @brief Vẽ trang lịch kèm đồng hồ kim
+ * @param unix_time Dấu thời gian Unix hiện tại
+ * @param force_redraw Có bắt buộc vẽ lại đồng hồ hay không
  */
 void draw_calendar_with_analog_clock(uint32_t unix_time, bool force_redraw);
 
 #endif // __ANALOG_CLOCK_H
-
