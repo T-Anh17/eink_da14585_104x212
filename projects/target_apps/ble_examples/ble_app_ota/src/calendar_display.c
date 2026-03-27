@@ -89,12 +89,12 @@ static void draw_calendar_grid(uint16_t year, uint8_t month,
 static void draw_right_panel(tm_t *tm) {
   char buf[20];
 
-  // 1. Hiển thị nhiệt độ | năm
-  sprintf(buf, "%d|%s", tm->tm_year + YEAR0, "29C");
+  // 1. Hiển thị năm - tháng
+  sprintf(buf, "%d-%d", tm->tm_year + YEAR0, tm->tm_mon + 1);
   EPD_DrawUTF8(130, 2, 0, buf, EPD_ASCII_Font8, 0, BLACK, WHITE);
 
-  // 2. Hiển thị Tháng lớn (Căn giữa ô bên phải)
-  sprintf(buf, "%02d", tm->tm_mon);
+  // 2. Hiển thị ngày lớn (Căn giữa ô bên phải)
+  sprintf(buf, "%02d", tm->tm_mday);
   // WHITE là màu nền, BLACK là màu chữ.
   // Vẽ font lớn gấp 2 lần (chiều cao 48px, rộng 68px).
   // Đặt X=135 (căn giữa khoảng 125-212), Y=24 (căn giữa giữa Y=14 và Y=72)
