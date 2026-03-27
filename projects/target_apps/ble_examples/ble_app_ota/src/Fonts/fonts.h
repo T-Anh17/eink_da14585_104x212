@@ -88,10 +88,10 @@ extern cFONT Font24VI;
 extern const unsigned char Font12_Table[];
 extern const uint8_t EPD_FontUTF8_16x16[];
 extern const uint8_t EPD_FontUTF8_24x24[];
-extern const uint8_t EPD_ASCII_11X16[];
 extern const uint8_t Font8_Table[];
 extern const uint8_t kunbw[];
 extern const uint8_t kunwr[];
+extern const uint8_t EPD_ASCII_11X16[];
 extern const uint8_t EPD_ASCII_7X12[];
 extern const uint8_t EPD_40X80_TABLE[];
 #ifdef __cplusplus

@@ -1,9 +1,11 @@
 #include "calendar_display.h"
 #include "EPD_2in13_V2.h"
+#include "Fonts/fonts.h"
 #include "analog_clock.h"
 #include "GUI_Paint.h"
 #include "etime.h"
 #include "fonts.h"
+#include "lunar/lunar.h"
 #include <stdio.h>
 extern uint8_t epd_buffer[];
 // Bảng số ngày trong tháng
@@ -93,17 +95,20 @@ static void draw_right_panel(tm_t *tm) {
     // WHITE là màu nền, BLACK là màu chữ. 
     // Màn hình bên phải từ X=125 đến 212 (rộng 87px). Chữ Font24 ~ 34px. 
     // Đặt X=151 để căn giữa.
-		EPD_DrawUTF8(151, 22, 0, buf, EPD_ASCII_7X12, 0, BLACK, WHITE);
+	EPD_DrawUTF8(151, 22, 0, buf, EPD_FontUTF8_24x24, 0, BLACK, WHITE);
 
     // 3. Hiển thị Giờ số (Đã chuyển sang phải - Tọa độ 140, 72)
     sprintf(buf, "%02d:%02d", tm->tm_hour, tm->tm_min);
     EPD_DrawUTF8(140, 72, 0, buf, EPD_ASCII_11X16, 0, BLACK, WHITE);
     
+    // 5. Tên năm (Bính Ngọ)
+    struct Lunar_Date my_lunar; 
+    LUNAR_SolarToLunar(&my_lunar, tm->tm_year + YEAR0, tm->tm_mon + 1, tm->tm_mday);
+    const char *year_str = LUNAR_GetYearName(&my_lunar);
+    EPD_DrawUTF8(126, 87, 0, year_str, EPD_ASCII_7X12, 0, BLACK, WHITE);
+
     // 4. Nhiệt độ (Tọa độ 192, 80)
-    EPD_DrawUTF8(192, 80, 0, "29C", EPD_ASCII_7X12, 0, BLACK, WHITE);
-    
-    // 5. Năm âm lịch (Tọa độ 126, 87)
-    EPD_DrawUTF8(126, 87, 0, "Binh Ngo", EPD_ASCII_7X12, 0, BLACK, WHITE);
+    EPD_DrawUTF8(192, 87, 0, "29C", EPD_ASCII_7X12, 0, BLACK, WHITE);
 }
 
 void draw_calendar_page(uint32_t unix_time, bool force_redraw) {
@@ -133,6 +138,16 @@ void draw_calendar_page(uint32_t unix_time, bool force_redraw) {
     // Vẽ thông tin chi tiết bên phải
     draw_right_panel(&tm);
     
-    // Thông tin bổ sung góc dưới trái (Ví dụ: Số ngày đếm ngược)
-    EPD_DrawUTF8(1, 87, 0, "GKD: 333 ngay", EPD_ASCII_7X12, 0, BLACK, WHITE);
+    // Vẽ Thông tin Tiết Khí 
+    // Lấy tiết khí
+    uint8_t jq_days;
+    uint8_t jq_idx = GetJieQiStr(tm.tm_year + YEAR0, tm.tm_mon + 1, tm.tm_mday, &jq_days);
+    // Vẽ Tiết Khí ở đầu góc dưới trái (tọa độ 2, 87)
+    if (jq_idx != 0xFF) {
+        char jq_buf[32];
+        sprintf(jq_buf, "TK: %s", JieQiStr[jq_idx]);
+        EPD_DrawUTF8(2, 87, 0, jq_buf, EPD_ASCII_7X12, 0, BLACK, WHITE);
+    }
+
+    
 }

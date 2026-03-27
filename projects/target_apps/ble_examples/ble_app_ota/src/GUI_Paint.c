@@ -862,158 +862,162 @@ void Paint_DrawImage(const unsigned char *image_buffer, UWORD xStart, UWORD ySta
 
 
 /**
- * @brief  绘制UTF8字符串。
- * @param  x 绘制起始X位置。
- * @param  y 绘制起始Y位置。
- * @param  gap 字符间额外间距。
- * @param  str 要绘制的字符串指针。
- * @param  ascii_font ASCII字符字模指针。
- * @param  utf8_font UTF8字符字模指针。
+ * @brief  Vẽ chuỗi ký tự UTF-8.
+ * @param  x  Tọa độ X bắt đầu vẽ.
+ * @param  y  Tọa độ Y bắt đầu vẽ.
+ * @param  gap  Khoảng cách thêm giữa các ký tự.
+ * @param  str  Con trỏ tới chuỗi cần vẽ.
+ * @param  ascii_font  Con trỏ tới font ASCII (chữ không dấu).
+ * @param  utf8_font  Con trỏ tới font UTF-8 (chữ có dấu, ví dụ tiếng Việt).
  */
-void EPD_DrawUTF8(uint16_t x, uint8_t y, uint8_t gap, const char *str, const uint8_t *ascii_font, const uint8_t *utf8_font,
-             UWORD Color_Foreground, UWORD Color_Background) {
+void EPD_DrawUTF8(uint16_t x, uint8_t y, uint8_t gap,
+                  const char *str,
+                  const uint8_t *ascii_font,
+                  const uint8_t *utf8_font,
+                  UWORD Color_Foreground,
+                  UWORD Color_Background)
+{
     uint16_t i, utf8_size;
-    uint16_t x_count, font_size;
+    uint16_t x_count = 0; // độ lệch X khi vẽ từng ký tự
+    uint16_t font_size;
     uint32_t unicode, unicode_temp;
     const uint8_t *ascii_base_addr;
     uint16_t j, q;
     uint16_t fontHeight, fontWidth;
-    x_count = 0;
-    while (*str != '\0') {
-        if ((*str & 0x80) == 0x00) /* 普通ASCII字符 */
+
+    while (*str != '\0') // duyệt từng ký tự
+    {
+        // ================= ASCII =================
+        if ((*str & 0x80) == 0x00) // ký tự ASCII (bit đầu = 0)
         {
-            if (ascii_font != NULL) {
-
-                font_size = ((ascii_font[1] % 8 == 0 ? 0 : 1)+(ascii_font[1] /8)) * ascii_font[2] ;
-                fontWidth = ascii_font[1];
-                fontHeight = ascii_font[2];
-                ascii_base_addr = ascii_font + (*str - ascii_font[0]) * font_size + 4;
-                if ((*str - ascii_font[0])>=0&&(ascii_base_addr + font_size <= ascii_font + 4 + font_size * ascii_font[3])) /* 限制数组范围 */
-                {
-//                    EPD_SetWindow(x + x_count, y_x8, ascii_font[1], ascii_font[2] / 8);
-//                    EPD_SendRAM(ascii_base_addr, font_size);
-                    for (j = 0; j < fontHeight; j++) {
-                        for (q = 0; q < fontWidth; q++) {
-                            if (FONT_BACKGROUND == Color_Background) { //this process is to speed up the scan
-                                if (*ascii_base_addr & (0x80 >> (q % 8))) {
-                                    Paint_SetPixel(x + x_count + q, y + j, Color_Foreground);
-                                    // Paint_DrawPoint(x + i, y + j, Color_Foreground, DOT_PIXEL_DFT, DOT_STYLE_DFT);
-                                }
-                            } else {
-                                if (*ascii_base_addr & (0x80 >> (q % 8))) {
-                                    Paint_SetPixel(x + x_count + q, y + j, Color_Foreground);
-                                    // Paint_DrawPoint(x + i, y + j, Color_Foreground, DOT_PIXEL_DFT, DOT_STYLE_DFT);
-                                } else {
-                                    Paint_SetPixel(x + x_count + q, y + j, Color_Background);
-                                    // Paint_DrawPoint(x + i, y + j, Color_Background, DOT_PIXEL_DFT, DOT_STYLE_DFT);
-                                }
-                            }
-                            if (q % 8 == 7) {
-                                ascii_base_addr++;
-                            }
-                        }
-                        if (fontWidth % 8 != 0) {
-                            ascii_base_addr++;
-                        }
-                    }
-
-                }
-                x_count += ascii_font[1] + gap;
-            } else if (*str == ' ' && utf8_font != NULL) /* 未指定ASCII字体时空格为UTF8字体宽度除2 */
+            if (ascii_font != NULL)
             {
-//                font_size = (utf8_font[1] / 2) * (utf8_font[2] / 8);
-//                EPD_SetWindow(x + x_count, y_x8, utf8_font[1] / 2, utf8_font[2] / 8);
-//                for (i = 0; i < font_size; i++)
-//                {
-//                    utf8_size = 0xFF; /* 借用变量 */
-//                    EPD_SendRAM(&utf8_size, 1);
-//                }
+                // tính kích thước 1 ký tự
+                font_size = ((ascii_font[1] % 8 == 0 ? 0 : 1) + (ascii_font[1] / 8)) * ascii_font[2];
+
+                fontWidth  = ascii_font[1]; // chiều rộng
+                fontHeight = ascii_font[2]; // chiều cao
+
+                // lấy địa chỉ bitmap của ký tự
+                ascii_base_addr = ascii_font + (*str - ascii_font[0]) * font_size + 4;
+
+                // kiểm tra không vượt mảng
+                if ((*str - ascii_font[0]) >= 0 &&
+                    (ascii_base_addr + font_size <= ascii_font + 4 + font_size * ascii_font[3]))
+                {
+                    // vẽ từng pixel
+                    for (j = 0; j < fontHeight; j++)
+                    {
+                        for (q = 0; q < fontWidth; q++)
+                        {
+                            if (*ascii_base_addr & (0x80 >> (q % 8)))
+                                Paint_SetPixel(x + x_count + q, y + j, Color_Foreground);
+                            else
+                                Paint_SetPixel(x + x_count + q, y + j, Color_Background);
+
+                            if (q % 8 == 7)
+                                ascii_base_addr++;
+                        }
+                        if (fontWidth % 8 != 0)
+                            ascii_base_addr++;
+                    }
+                }
+
+                // tăng vị trí X
+                x_count += fontWidth + gap;
+            }
+            else if (*str == ' ' && utf8_font != NULL)
+            {
+                // nếu không có ASCII font → space dùng UTF8 font
                 x_count += utf8_font[1] / 2 + gap;
             }
-        } else if (utf8_font != NULL) /* UTF8字符 */
+        }
+
+        // ================= UTF-8 =================
+        else if (utf8_font != NULL)
         {
-            unicode = 0x000000;
+            unicode = 0;
             utf8_size = 0;
-            for (i = 0; i < 5; i++) {
-                if (*str & (0x80 >> i)) {
-                    utf8_size += 1;
-                } else {
+
+            // xác định số byte UTF8
+            for (i = 0; i < 5; i++)
+            {
+                if (*str & (0x80 >> i))
+                    utf8_size++;
+                else
                     break;
-                }
             }
-            switch (utf8_size) {
+
+            // decode UTF8 → Unicode
+            switch (utf8_size)
+            {
                 case 2:
-                    if (*(str + 1) != '\0') {
-                        unicode = (*str & 0x1F) << 6;
-                        str += 1;
-                        unicode |= *str & 0x3F;
-                    }
+                    unicode = (*str & 0x1F) << 6;
+                    str++;
+                    unicode |= *str & 0x3F;
                     break;
+
                 case 3:
-                    if (*(str + 1) != '\0' && *(str + 2) != '\0') {
-                        unicode = (*str & 0x0F) << 12;
-                        str += 1;
-                        unicode |= (*str & 0x3F) << 6;
-                        str += 1;
-                        unicode |= *str & 0x3F;
-                    }
+                    unicode = (*str & 0x0F) << 12;
+                    str++;
+                    unicode |= (*str & 0x3F) << 6;
+                    str++;
+                    unicode |= *str & 0x3F;
                     break;
+
                 case 4:
-                    if (*(str + 1) != '\0' && *(str + 2) != '\0' && *(str + 3) != '\0') {
-                        unicode = (*str & 0x07) << 18;
-                        str += 1;
-                        unicode |= (*str & 0x3F) << 12;
-                        str += 1;
-                        unicode |= (*str & 0x3F) << 6;
-                        str += 1;
-                        unicode |= *str & 0x3F;
-                    }
+                    unicode = (*str & 0x07) << 18;
+                    str++;
+                    unicode |= (*str & 0x3F) << 12;
+                    str++;
+                    unicode |= (*str & 0x3F) << 6;
+                    str++;
+                    unicode |= *str & 0x3F;
                     break;
             }
-            if (unicode != 0) {
-                font_size = ((utf8_font[1] % 8 == 0 ? 0 : 1)+(utf8_font[1] /8)) * utf8_font[2] ;
-                fontWidth = utf8_font[1];
+
+            // nếu decode thành công
+            if (unicode != 0)
+            {
+                font_size = ((utf8_font[1] % 8 == 0 ? 0 : 1) + (utf8_font[1] / 8)) * utf8_font[2];
+                fontWidth  = utf8_font[1];
                 fontHeight = utf8_font[2];
-                for (i = 0; i < utf8_font[3]; i++) /* 限制数组范围 */
+
+                // tìm ký tự trong bảng font
+                for (i = 0; i < utf8_font[3]; i++)
                 {
                     unicode_temp = utf8_font[4 + (font_size + 3) * i] << 16;
                     unicode_temp |= utf8_font[5 + (font_size + 3) * i] << 8;
                     unicode_temp |= utf8_font[6 + (font_size + 3) * i];
-                    if (unicode_temp == unicode) {
-//                        EPD_SetWindow(x + x_count, y_x8, utf8_font[1], utf8_font[2] / 8);
-//                        EPD_SendRAM(utf8_font + 7 + (font_size + 3) * i, font_size);
+
+                    if (unicode_temp == unicode)
+                    {
                         ascii_base_addr = utf8_font + 7 + (font_size + 3) * i;
-                        for (j = 0; j <  fontHeight; j++) {
-                            for (q = 0; q < fontWidth; q++) {
-                                if (FONT_BACKGROUND == Color_Background) { //this process is to speed up the scan
-                                    if (*ascii_base_addr & (0x80 >> (q % 8))) {
-                                        Paint_SetPixel(x + x_count + q, y + j, Color_Foreground);
-                                        // Paint_DrawPoint(x + i, y + j, Color_Foreground, DOT_PIXEL_DFT, DOT_STYLE_DFT);
-                                    }
-                                } else {
-                                    if (*ascii_base_addr & (0x80 >> (q % 8))) {
-                                        Paint_SetPixel(x + x_count + q, y + j, Color_Foreground);
-                                        // Paint_DrawPoint(x + i, y + j, Color_Foreground, DOT_PIXEL_DFT, DOT_STYLE_DFT);
-                                    } else {
-                                        Paint_SetPixel(x + x_count + q, y + j, Color_Background);
-                                        // Paint_DrawPoint(x + i, y + j, Color_Background, DOT_PIXEL_DFT, DOT_STYLE_DFT);
-                                    }
-                                }
-                                if (q % 8 == 7) {
+
+                        // vẽ bitmap
+                        for (j = 0; j < fontHeight; j++)
+                        {
+                            for (q = 0; q < fontWidth; q++)
+                            {
+                                if (*ascii_base_addr & (0x80 >> (q % 8)))
+                                    Paint_SetPixel(x + x_count + q, y + j, Color_Foreground);
+                                else
+                                    Paint_SetPixel(x + x_count + q, y + j, Color_Background);
+
+                                if (q % 8 == 7)
                                     ascii_base_addr++;
-                                }
                             }
-                            if (fontWidth % 8 != 0) {
+                            if (fontWidth % 8 != 0)
                                 ascii_base_addr++;
-                            }
                         }
                         break;
                     }
                 }
             }
+
             x_count += utf8_font[1] + gap;
         }
-        str += 1;
+
+        str++; // sang ký tự tiếp theo
     }
-//    printf("x_count:%d\n", x_count);
 }
