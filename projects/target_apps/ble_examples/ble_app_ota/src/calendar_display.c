@@ -36,7 +36,8 @@ static void draw_layout_and_header(void) {
   const char *weeks[] = {"CN", "T2", "T3", "T4", "T5", "T6", "T7"};
   for (uint8_t i = 0; i < 7; i++) {
     // Căn chỉnh tọa độ x để các thứ nằm đều nhau
-    EPD_DrawUTF8(5 + (i * 17), 4, 0, weeks[i], EPD_ASCII_7X12, 0, WHITE, BLACK);
+    EPD_DrawUTF8(5 + (i * 17), 4, 0, weeks[i], EPD_ASCII_Font8, 0, WHITE,
+                 BLACK);
   }
 }
 
@@ -67,10 +68,10 @@ static void draw_calendar_grid(uint16_t year, uint8_t month,
       // Vẽ ô vuông đen cho ngày hiện tại
       Paint_DrawRectangle(x_pos - 1, y_pos - 1, x_pos + 14, y_pos + 11, BLACK,
                           DOT_PIXEL_1X1, DRAW_FILL_FULL);
-      EPD_DrawUTF8(x_pos + 1, y_pos, 0, day_buf, EPD_ASCII_7X12, 0, WHITE,
+      EPD_DrawUTF8(x_pos + 1, y_pos, 0, day_buf, EPD_ASCII_Font8, 0, WHITE,
                    BLACK);
     } else {
-      EPD_DrawUTF8(x_pos + 1, y_pos, 0, day_buf, EPD_ASCII_7X12, 0, BLACK,
+      EPD_DrawUTF8(x_pos + 1, y_pos, 0, day_buf, EPD_ASCII_Font8, 0, BLACK,
                    WHITE);
     }
 
@@ -90,7 +91,7 @@ static void draw_right_panel(tm_t *tm) {
 
   // 1. Hiển thị nhiệt độ | năm
   sprintf(buf, "%d|%s", tm->tm_year + YEAR0, "29C");
-  EPD_DrawUTF8(130, 2, 0, buf, EPD_ASCII_7X12, 0, BLACK, WHITE);
+  EPD_DrawUTF8(130, 2, 0, buf, EPD_ASCII_Font8, 0, BLACK, WHITE);
 
   // 2. Hiển thị Tháng lớn (Căn giữa ô bên phải)
   sprintf(buf, "%02d", tm->tm_mon);
@@ -101,14 +102,14 @@ static void draw_right_panel(tm_t *tm) {
 
   // 3. Hiển thị Giờ
   sprintf(buf, "%02d:%02d", tm->tm_hour, tm->tm_min);
-  EPD_DrawUTF8(140, 72, 0, buf, EPD_ASCII_11X16, 0, BLACK, WHITE);
+  EPD_DrawUTF8(140, 72, 0, buf, EPD_ASCII_Font16, 0, BLACK, WHITE);
 
   // 4. Tên năm (Bính Ngọ)
   struct Lunar_Date my_lunar;
   LUNAR_SolarToLunar(&my_lunar, tm->tm_year + YEAR0, tm->tm_mon + 1,
                      tm->tm_mday);
   const char *year_str = LUNAR_GetYearName(&my_lunar);
-  EPD_DrawUTF8(138, 87, 0, year_str, EPD_ASCII_7X12, 0, BLACK, WHITE);
+  EPD_DrawUTF8(138, 87, 0, year_str, EPD_ASCII_Font8, 0, BLACK, WHITE);
 }
 
 void draw_calendar_page(uint32_t unix_time, bool force_redraw) {
@@ -145,6 +146,6 @@ void draw_calendar_page(uint32_t unix_time, bool force_redraw) {
   if (jq_idx != 0xFF) {
     char jq_buf[32];
     sprintf(jq_buf, "TK:%s", JieQiStr[jq_idx]);
-    EPD_DrawUTF8(2, 87, 0, jq_buf, EPD_ASCII_7X12, 0, BLACK, WHITE);
+    EPD_DrawUTF8(2, 87, 0, jq_buf, EPD_ASCII_Font8, 0, BLACK, WHITE);
   }
 }
