@@ -49,7 +49,6 @@
 #include <stdio.h>
 #include <time.h>
 
-
 /*
  * ĐỊNH NGHĨA BIẾN TOÀN CỤC
  * ****************************************************************************************
@@ -86,9 +85,9 @@ uint16_t non_db_val_counter
     __SECTION_ZERO("retention_mem_area0"); //@RETENTION MEMORY
 
 #define epd_buffer_size (EPD_2IN13_V2_WIDTH * EPD_2IN13_V2_HEIGHT / 8)
-#define buffer_size (EPD_2IN13_V2_WIDTH * EPD_2IN13_V2_HEIGHT / 4)
+#define img_flash_payload_address (IMG_HEADER_ADDRESS + sizeof(img_header_t))
 uint32_t byte_pos __SECTION_ZERO("retention_mem_area0");
-uint8_t epd_buffer[buffer_size] __SECTION_ZERO("retention_mem_area0");
+uint8_t epd_buffer[epd_buffer_size];
 uint16_t index __SECTION_ZERO("retention_mem_area0");
 uint8_t step __SECTION_ZERO("retention_mem_area0");
 ke_msg_id_t
@@ -99,9 +98,88 @@ uint16_t time_refresh_count __SECTION_ZERO("retention_mem_area0");
 uint8_t isconnected __SECTION_ZERO("retention_mem_area0");
 tm_t g_tm __SECTION_ZERO("retention_mem_area0");
 uint8_t is_part __SECTION_ZERO("retention_mem_area0");
+static fabric_record_t current_fabric_record = {.width = "62/66 NEW",
+                                                .staff = "Tai",
+                                                .po = "302J07",
+                                                .relax_date = "12/3 9h",
+                                                .ok_date = "14/3",
+                                                .item = "Tie: 0464",
+                                                .color = "Caviar",
+                                                .lot = "4/296 6/985",
+                                                .buy = "1224",
+                                                .roll = "101",
+                                                .yds = "489",
+                                                .note = "T4"};
 
 void bls_att_pushNotifyData(uint16_t attHandle, uint8_t *p, uint8_t len);
 void display(void);
+
+static void fabric_record_set_field(uint8_t field_id, const uint8_t *value,
+                                    uint16_t value_len) {
+  char *target = NULL;
+  uint16_t target_len = 0;
+
+  switch (field_id) {
+  case 0:
+    target = current_fabric_record.width;
+    target_len = sizeof(current_fabric_record.width);
+    break;
+  case 1:
+    target = current_fabric_record.staff;
+    target_len = sizeof(current_fabric_record.staff);
+    break;
+  case 2:
+    target = current_fabric_record.po;
+    target_len = sizeof(current_fabric_record.po);
+    break;
+  case 3:
+    target = current_fabric_record.relax_date;
+    target_len = sizeof(current_fabric_record.relax_date);
+    break;
+  case 4:
+    target = current_fabric_record.ok_date;
+    target_len = sizeof(current_fabric_record.ok_date);
+    break;
+  case 5:
+    target = current_fabric_record.item;
+    target_len = sizeof(current_fabric_record.item);
+    break;
+  case 6:
+    target = current_fabric_record.color;
+    target_len = sizeof(current_fabric_record.color);
+    break;
+  case 7:
+    target = current_fabric_record.lot;
+    target_len = sizeof(current_fabric_record.lot);
+    break;
+  case 8:
+    target = current_fabric_record.buy;
+    target_len = sizeof(current_fabric_record.buy);
+    break;
+  case 9:
+    target = current_fabric_record.roll;
+    target_len = sizeof(current_fabric_record.roll);
+    break;
+  case 10:
+    target = current_fabric_record.yds;
+    target_len = sizeof(current_fabric_record.yds);
+    break;
+  case 11:
+    target = current_fabric_record.note;
+    target_len = sizeof(current_fabric_record.note);
+    break;
+  default:
+    return;
+  }
+
+  if (value_len >= target_len) {
+    value_len = target_len - 1;
+  }
+
+  memset(target, 0, target_len);
+  memcpy(target, value, value_len);
+  target[value_len] = '\0';
+}
 
 #define IMAGE_WIDTH 70
 #define IMAGE_HEIGHT 70
@@ -137,23 +215,9 @@ void do_display_update_with_analog_clock(void) {
   if (minute_changed)
     last_minute = g_tm.tm_min;
 
-  // Dummy data for fabric record
-  static fabric_record_t current_fabric_record = {.width = "62/66 NEW",
-                                                  .staff = "Tai",
-                                                  .po = "302J07",
-                                                  .relax_date = "12/3 9h",
-                                                  .ok_date = "14/3",
-                                                  .item = "Tie: 0464",
-                                                  .color = "Caviar",
-                                                  .lot = "4/296 6/985",
-                                                  .buy = "1224",
-                                                  .roll = "101",
-                                                  .yds = "489",
-                                                  .note = "T4"};
-
   switch (current_display_mode) {
 
-  case DISPLAY_MODE_TIME: // Mode đồng hồ mặc định
+  case DISPLAY_MODE_TIME: // Mode thời gian mặc định
     draw_time_page(current_unix_time, force_redraw || minute_changed);
     break;
 
@@ -185,15 +249,13 @@ void do_display_update_with_analog_clock(void) {
     break;
   }
 
-  // Vê giao dien pin dung chung
-  // 1. Khung pin (giữ nguyên)
-  Paint_DrawRectangle(196, 4, 210, 11, BLACK, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-
-  // 2. Đầu cực chuyển sang trái
-  Paint_DrawRectangle(194, 6, 195, 10, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL);
-
-  // 3. Ruột pin (fill từ phải -> trái)
-  if (cur_batt_level > 0) {
+  // Vẽ giao dien pin dung chung
+  Paint_DrawRectangle(196, 4, 210, 11, BLACK, DOT_PIXEL_1X1,
+                      DRAW_FILL_EMPTY); // 1. Khung pin
+  Paint_DrawRectangle(194, 6, 195, 10, BLACK, DOT_PIXEL_1X1,
+                      DRAW_FILL_FULL); // 2. Đầu cực
+  if (cur_batt_level > 0)              // Ruột pin (fill từ phải -> trái)
+  {
     int width = (cur_batt_level * 10 / 100); // chiều dài fill
 
     Paint_DrawRectangle(208 - width, 6, 208, 10, BLACK, DOT_PIXEL_1X1,
@@ -237,15 +299,41 @@ void do_img_save(void) {
       imgheader.signature[1] == IMG_HEADER_SIGNATURE2 &&
       imgheader.validflag != IMG_HEADER_VALID) {
     imgheader.validflag = IMG_HEADER_VALID;
-    img_header_t *imgheadertmp;
     spi_flash_peripheral_init();
+    {
+      const uint32_t total_size = sizeof(img_header_t) + epd_buffer_size;
+      const uint32_t erase_end = img_flash_payload_address + epd_buffer_size - 1;
+      uint32_t erase_addr;
+      int8_t status = 0;
 
-    uint8_t buf[20] = {0};
-    int8_t status = spi_flash_read_data(buf, IMG_HEADER_ADDRESS,
-                                        sizeof(img_header_t), &actual_size);
-    arch_printf("status0:%d\n", status);
-    imgheadertmp = (img_header_t *)buf;
-    // Đưa SPI flash vào chế độ cực thấp điện năng (ultra deep power down)
+      for (erase_addr = IMG_HEADER_ADDRESS; erase_addr <= erase_end;
+           erase_addr += SPI_FLASH_SECTOR_SIZE) {
+        status = spi_flash_block_erase(erase_addr, SPI_FLASH_OP_SE);
+        if (status != 0) {
+          arch_printf("img erase fail:%d@0x%lx\n", status, erase_addr);
+          spi_flash_ultra_deep_power_down();
+          return;
+        }
+      }
+
+      status = spi_flash_write_data((uint8_t *)&imgheader, IMG_HEADER_ADDRESS,
+                                    sizeof(img_header_t), &actual_size);
+      if (status != 0 || actual_size != sizeof(img_header_t)) {
+        arch_printf("img header write fail:%d,%lu\n", status, actual_size);
+        spi_flash_ultra_deep_power_down();
+        return;
+      }
+
+      status = spi_flash_write_data(epd_buffer, img_flash_payload_address,
+                                    epd_buffer_size, &actual_size);
+      if (status != 0 || actual_size != epd_buffer_size) {
+        arch_printf("img payload write fail:%d,%lu\n", status, actual_size);
+        spi_flash_ultra_deep_power_down();
+        return;
+      }
+
+      arch_printf("img saved:%lu bytes\n", total_size);
+    }
     spi_flash_ultra_deep_power_down();
   }
 }
@@ -276,8 +364,8 @@ void my_app_on_db_init_complete(void) {
   CALLBACK_ARGS_0(user_default_app_operations.default_operation_adv)
   arch_printf("my_app_on_db_init_complete_modified\n");
 
-  // Khởi tạo chế độ hiển thị mặc định (Tạm thời test lịch)
-  current_display_mode = DISPLAY_MODE_CALENDAR;
+  // Khởi tạo chế độ hiển thị mặc định
+  current_display_mode = DISPLAY_MODE_TIME;
   last_update_time = 0;
   last_minute = 255;
 
@@ -290,8 +378,12 @@ void my_app_on_db_init_complete(void) {
   if (imgheader.signature[0] == IMG_HEADER_SIGNATURE1 &&
       imgheader.signature[1] == IMG_HEADER_SIGNATURE2 &&
       imgheader.validflag == IMG_HEADER_VALID) {
-    spi_flash_read_data(epd_buffer, IMG_HEADER_ADDRESS + sizeof(img_header_t),
-                        sizeof(epd_buffer), &actual_size);
+    uint32_t read_size = imgheader.code_size;
+    if (read_size == 0 || read_size > epd_buffer_size) {
+      read_size = epd_buffer_size;
+    }
+    spi_flash_read_data(epd_buffer, img_flash_payload_address, read_size,
+                        &actual_size);
     arch_printf("epd_buffer read:%d\n", actual_size);
   }
   spi_flash_ultra_deep_power_down();
@@ -411,17 +503,39 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
     return;
   }
   if (param->value[0] == 0x03) {
-    if ((payload[2] << 8 | payload[3]) + payload_len - 4 >=
-        epd_buffer_size + 1) {
+    uint16_t offset;
+    uint16_t data_index;
+    uint16_t data_len;
+
+    if (payload_len < 3) {
       out_buffer[0] = 0x00;
       out_buffer[1] = 0x00;
       bls_att_pushNotifyData(SVC1_IDX_LED_STATE_VAL, out_buffer, 2);
       return;
     }
+
     if (payload[1] == 0xff) {
-      memcpy(epd_buffer + (payload[2] << 8 | payload[3]), payload + 4,
-             payload_len - 4);
+      if (payload_len < 4) {
+        out_buffer[0] = 0x00;
+        out_buffer[1] = 0x00;
+        bls_att_pushNotifyData(SVC1_IDX_LED_STATE_VAL, out_buffer, 2);
+        return;
+      }
+      offset = (payload[2] << 8) | payload[3];
+      data_index = 4;
+    } else {
+      offset = (payload[1] << 8) | payload[2];
+      data_index = 3;
     }
+
+    data_len = payload_len - data_index;
+    if ((offset + data_len) > epd_buffer_size) {
+      out_buffer[0] = 0x00;
+      out_buffer[1] = 0x00;
+      bls_att_pushNotifyData(SVC1_IDX_LED_STATE_VAL, out_buffer, 2);
+      return;
+    }
+    memcpy(epd_buffer + offset, payload + data_index, data_len);
     out_buffer[0] = payload_len >> 8;
     out_buffer[1] = payload_len & 0xff;
     bls_att_pushNotifyData(SVC1_IDX_LED_STATE_VAL, out_buffer, 2);
@@ -438,9 +552,9 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
     imgheader.signature[0] = IMG_HEADER_SIGNATURE1;
     imgheader.signature[1] = IMG_HEADER_SIGNATURE2;
     imgheader.CRC = 0xFFFFFFFF;
-    imgheader.CRC = crc32(imgheader.CRC, epd_buffer, sizeof(epd_buffer));
+    imgheader.CRC = crc32(imgheader.CRC, epd_buffer, epd_buffer_size);
     imgheader.CRC ^= 0xFFFFFFFF;
-    imgheader.code_size = sizeof(epd_buffer);
+    imgheader.code_size = epd_buffer_size;
     imgheader.validflag = 0;
     current_display_mode = DISPLAY_MODE_IMAGE;
     last_update_time = current_unix_time;
@@ -464,7 +578,13 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
     return;
   // 0x01, 0x02, 0x03 đã được xử lý bên trên (bypass guard step!=0)
   case 0x04: // Giải mã và hiển thị hình ảnh TIFF
+    do_img_save();
+    out_buffer[0] = 0x04;
+    out_buffer[1] = 0x01;
+    bls_att_pushNotifyData(SVC1_IDX_LED_STATE_VAL, out_buffer, 2);
     // param_update_request(1);
+    return;
+  case 0x06: // App có thể gửi metadata kích thước ảnh, firmware hiện dùng buffer cố định
     return;
   case 0xAA:
     do_img_save();
@@ -509,7 +629,7 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
       uint8_t mode_idx = payload[1];
       // Mapping app-level: đúng với những gì app gửi
       // 0x00=IMAGE, 0x01=CALENDAR, 0x02=TIME
-      // 0x03=CALENDAR_ANALOG, 0x04=CLOCK, 0x05=FABRIC_RECORD
+      // 0x03=CALENDAR_ANALOG, 0x04=FABRIC_RECORD
       if (mode_idx == 0x00)
         current_display_mode = DISPLAY_MODE_IMAGE;
       else if (mode_idx == 0x01)
@@ -518,7 +638,7 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
         current_display_mode = DISPLAY_MODE_TIME;
       else if (mode_idx == 0x03)
         current_display_mode = DISPLAY_MODE_CALENDAR_ANALOG;
-      else if (mode_idx == 0x05)
+      else if (mode_idx == 0x04)
         current_display_mode = DISPLAY_MODE_FABRIC_RECORD;
 
       last_update_time = 0;
@@ -620,7 +740,7 @@ void user_svc2_wr_ind_handler(ke_msg_id_t const msgid,
       uint8_t mode_idx = param->value[1];
       // Mapping app-level: đúng với những gì app gửi
       // 0x00=IMAGE, 0x01=CALENDAR, 0x02=TIME
-      // 0x03=CALENDAR_ANALOG, 0x04=CLOCK, 0x05=FABRIC_RECORD
+      // 0x03=CALENDAR_ANALOG, 0x04=FABRIC_RECORD
       if (mode_idx == 0x00)
         current_display_mode = DISPLAY_MODE_IMAGE;
       else if (mode_idx == 0x01)
@@ -640,6 +760,9 @@ void user_svc2_wr_ind_handler(ke_msg_id_t const msgid,
       arch_printf("E1: mode_idx=%d, display_mode=%d\n", mode_idx,
                   current_display_mode);
     }
+  } else if ((param->value[0] == 0xF0) && (param->length >= 3)) {
+    fabric_record_set_field(param->value[1], &param->value[2], param->length - 2);
+    arch_printf("Fabric field updated:%d\n", param->value[1]);
   }
 }
 
