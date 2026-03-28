@@ -61,11 +61,69 @@
           <button id="calendarAnalogModeBtn" disabled="" class="control-btn">
             Chế độ lịch + đồng hồ
           </button>
-          <button id="clockModeBtn" disabled="" class="control-btn">
-            Chế độ đồng hồ kim
-          </button>
           <button id="fabricRecordModeBtn" disabled="" class="control-btn">
             Chế độ thẻ kho
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-bottom: 20px; color: #4a5568">Dữ liệu thẻ kho</h2>
+
+        <div class="fabric-form">
+          <div class="setting-group">
+            <label for="fabricWidth">Khổ vải</label>
+            <input id="fabricWidth" type="text" value="62/66 NEW" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricStaff">NV xả</label>
+            <input id="fabricStaff" type="text" value="Tai" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricPo">PO</label>
+            <input id="fabricPo" type="text" value="302J07" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricRelaxDate">Ngày xả</label>
+            <input id="fabricRelaxDate" type="text" value="12/3 9h" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricOkDate">Ngày OK</label>
+            <input id="fabricOkDate" type="text" value="14/3" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricItem">Item</label>
+            <input id="fabricItem" type="text" value="Tie: 0464" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricColor">Màu</label>
+            <input id="fabricColor" type="text" value="Caviar" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricLot">Lot</label>
+            <input id="fabricLot" type="text" value="4/296 6/985" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricBuy">Buy</label>
+            <input id="fabricBuy" type="text" value="1224" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricRoll">Roll</label>
+            <input id="fabricRoll" type="text" value="101" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricYds">YDS</label>
+            <input id="fabricYds" type="text" value="489" />
+          </div>
+          <div class="setting-group">
+            <label for="fabricNote">Ghi chú</label>
+            <input id="fabricNote" type="text" value="T4" />
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="uploadFabricBtn" disabled="" class="upload-btn">
+            Nạp thẻ kho
           </button>
         </div>
       </div>
@@ -93,7 +151,7 @@
           <div class="setting-group">
             <label for="canvasSize">Kích thước Canvas</label>
             <select id="canvasSize">
-              <option value="256x128">256x128</option>
+              <option value="212x104">212x104</option>
             </select>
           </div>
           <div class="setting-group">
@@ -167,8 +225,8 @@
           >
             <canvas
               id="imagePreview"
-              width="256"
-              height="128"
+              width="212"
+              height="104"
               style="
                 border: 1px solid #ddd;
                 border-radius: 8px;
@@ -224,11 +282,26 @@
       const disconnectBtn = document.getElementById("disconnectBtn");
       const generateCodeBtn = document.getElementById("generateCodeBtn");
       const uploadCodeBtn = document.getElementById("uploadCodeBtn");
+      const uploadFabricBtn = document.getElementById("uploadFabricBtn");
       const imageFile = document.getElementById("imageFile");
       const status = document.getElementById("status");
       const progressBar = document.getElementById("progress-bar");
       const imageCode = document.getElementById("imageCode");
       const imagePreview = document.getElementById("imagePreview");
+      const fabricFields = [
+        document.getElementById("fabricWidth"),
+        document.getElementById("fabricStaff"),
+        document.getElementById("fabricPo"),
+        document.getElementById("fabricRelaxDate"),
+        document.getElementById("fabricOkDate"),
+        document.getElementById("fabricItem"),
+        document.getElementById("fabricColor"),
+        document.getElementById("fabricLot"),
+        document.getElementById("fabricBuy"),
+        document.getElementById("fabricRoll"),
+        document.getElementById("fabricYds"),
+        document.getElementById("fabricNote"),
+      ];
 
       // Gỡ lỗi: Kiểm tra xem generateCodeBtn đã được lấy chính xác chưa
       console.log("Đã lấy xong phần tử DOM:");
@@ -255,7 +328,6 @@
       const calendarAnalogModeBtn = document.getElementById(
         "calendarAnalogModeBtn",
       );
-      const clockModeBtn = document.getElementById("clockModeBtn");
 
       // Các phần tử UI mới được thêm vào
       const canvasSize = document.getElementById("canvasSize");
@@ -402,6 +474,7 @@
         if (saveImageBtn) saveImageBtn.disabled = true;
         if (clearBtn) clearBtn.disabled = true;
         if (disconnectBtn) disconnectBtn.disabled = true;
+        if (uploadFabricBtn) uploadFabricBtn.disabled = true;
 
         // Tắt các nút chọn chế độ
         if (syncTimeBtn) {
@@ -424,10 +497,6 @@
           calendarAnalogModeBtn.disabled = true;
           calendarAnalogModeBtn.classList.remove("connected");
         }
-        if (clockModeBtn) {
-          clockModeBtn.disabled = true;
-          clockModeBtn.classList.remove("connected");
-        }
         if (fabricRecordModeBtn) {
           fabricRecordModeBtn.disabled = true;
           fabricRecordModeBtn.classList.remove("connected");
@@ -439,13 +508,12 @@
       const CHARACTERISTIC_UUID = "00001f1f-0000-1000-8000-00805f9b34fb";
 
       // Thông số hình ảnh
-      // Bộ đệm EPD của thiết bị là 256x128, tương đương 4096 byte (1 byte = 8 pixel)
-      const IMAGE_WIDTH = 256; // Chiều rộng bộ đệm EPD
-      const IMAGE_HEIGHT = 128; // Chiều cao bộ đệm EPD
+      // Màn hình logic của thiết bị là 212x104, firmware tự ánh xạ vào buffer raw 104x212
       const DISPLAY_WIDTH = 212; // Chiều rộng hiển thị EPD thực tế
       const DISPLAY_HEIGHT = 104; // Chiều cao hiển thị EPD thực tế
-      // Kích thước bộ đệm cố định là 4096 byte, 1 byte tương đương 8 pixel
-      const BUFFER_SIZE = 4096;
+      const PANEL_BUFFER_WIDTH = 104; // Chiều rộng buffer raw trong firmware
+      const PANEL_BUFFER_HEIGHT = 212; // Chiều cao buffer raw trong firmware
+      const BUFFER_SIZE = (PANEL_BUFFER_WIDTH * PANEL_BUFFER_HEIGHT) / 8;
       const MTU_SIZE = 20; // Kích thước BLE MTU, cải thiện hiệu quả truyền
 
       // Định nghĩa lệnh
@@ -566,8 +634,8 @@
           if (timeModeBtn) timeModeBtn.disabled = false;
           if (calendarModeBtn) calendarModeBtn.disabled = false;
           if (calendarAnalogModeBtn) calendarAnalogModeBtn.disabled = false;
-          if (clockModeBtn) clockModeBtn.disabled = false;
           if (fabricRecordModeBtn) fabricRecordModeBtn.disabled = false;
+          if (uploadFabricBtn) uploadFabricBtn.disabled = false;
 
           // Thêm lớp connected, thay đổi màu nút
           if (syncTimeBtn) syncTimeBtn.classList.add("connected");
@@ -576,7 +644,6 @@
           if (calendarModeBtn) calendarModeBtn.classList.add("connected");
           if (calendarAnalogModeBtn)
             calendarAnalogModeBtn.classList.add("connected");
-          if (clockModeBtn) clockModeBtn.classList.add("connected");
           if (fabricRecordModeBtn)
             fabricRecordModeBtn.classList.add("connected");
         } catch (e) {
@@ -616,13 +683,13 @@
         if (clearBtn) clearBtn.disabled = true;
         if (disconnectBtn) disconnectBtn.disabled = true;
         if (uploadCodeBtn) uploadCodeBtn.disabled = true;
+        if (uploadFabricBtn) uploadFabricBtn.disabled = true;
         // Tắt các nút chọn chế độ
         if (syncTimeBtn) syncTimeBtn.disabled = true;
         if (imageModeBtn) imageModeBtn.disabled = true;
         if (timeModeBtn) timeModeBtn.disabled = true;
         if (calendarModeBtn) calendarModeBtn.disabled = true;
         if (calendarAnalogModeBtn) calendarAnalogModeBtn.disabled = true;
-        if (clockModeBtn) clockModeBtn.disabled = true;
         if (fabricRecordModeBtn) fabricRecordModeBtn.disabled = true;
 
         // Xóa lớp connected, khôi phục màu nút ban đầu
@@ -632,7 +699,6 @@
         if (calendarModeBtn) calendarModeBtn.classList.remove("connected");
         if (calendarAnalogModeBtn)
           calendarAnalogModeBtn.classList.remove("connected");
-        if (clockModeBtn) clockModeBtn.classList.remove("connected");
         if (fabricRecordModeBtn)
           fabricRecordModeBtn.classList.remove("connected");
       };
@@ -771,26 +837,6 @@
         }
       };
 
-      // Sự kiện nút Chế độ đồng hồ kim
-      clockModeBtn.onclick = async () => {
-        if (!characteristic) {
-          updateStatus("Vui lòng Kết nối thiết bị trước");
-          return;
-        }
-
-        try {
-          await sendCommand(0xe1, [4]);
-          updateStatus("Chuyển sang Chế độ đồng hồ kim toàn màn hình");
-
-          // Đợi 200ms rồi gửi lệnh cập nhật
-          await delay(200);
-          await sendCommand(0xe2); // Gửi lệnh cập nhật (0xE2)
-          updateStatus("Đã hoàn thành gửi lệnh cập nhật!");
-        } catch (e) {
-          updateStatus("Thao tác thất bại: " + e);
-        }
-      };
-
       // Sự kiện nút Chế độ thẻ kho
       fabricRecordModeBtn.onclick = async () => {
         if (!characteristic) {
@@ -799,7 +845,7 @@
         }
 
         try {
-          await sendCommand(0xe1, [5]);
+          await sendCommand(0xe1, [4]);
           updateStatus("Chuyển sang Chế độ thẻ kho");
 
           // Đợi 200ms rồi gửi lệnh cập nhật
@@ -860,6 +906,39 @@
           return false;
         }
       }
+
+      async function sendFabricField(fieldId, value) {
+        const encoder = new TextEncoder();
+        const valueBytes = Array.from(encoder.encode(value.trim()));
+        return sendCommand(0xf0, [fieldId, ...valueBytes]);
+      }
+
+      uploadFabricBtn.onclick = async () => {
+        if (!characteristic) {
+          updateStatus("Vui lòng Kết nối thiết bị trước");
+          return;
+        }
+
+        try {
+          updateStatus("Đang nạp dữ liệu thẻ kho...");
+
+          for (let i = 0; i < fabricFields.length; i++) {
+            const ok = await sendFabricField(i, fabricFields[i].value || "");
+            if (!ok) {
+              throw new Error(`Không gửi được field ${i}`);
+            }
+            await delay(40);
+          }
+
+          await sendCommand(0xe1, [4]);
+          await delay(200);
+          await sendCommand(0xe2);
+          updateStatus("Đã nạp dữ liệu thẻ kho và cập nhật màn hình");
+        } catch (error) {
+          updateStatus("Nạp thẻ kho thất bại: " + error);
+          console.error("Nạp thẻ kho thất bại:", error);
+        }
+      };
 
       // Xóa hiển thị
       clearBtn.onclick = async () => {
@@ -923,11 +1002,7 @@
           const image = await createImageBitmap(file);
 
           // Điều chỉnh kích thước hình ảnh
-          const resizedImageData = resizeImage(
-            image,
-            IMAGE_WIDTH,
-            IMAGE_HEIGHT,
-          );
+          const resizedImageData = resizeImage(image, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
           // Chuyển đổi sang định dạng dữ liệu EPD
           const epdData = convertImageToEPDData(resizedImageData);
@@ -1000,24 +1075,46 @@
         }
       };
 
-      // Điều chỉnh kích thước hình ảnh, đảm bảo tạo hình ảnh độ phân giải 256x128
+      // Điều chỉnh kích thước ảnh theo màn hình logic 212x104 và crop để phủ kín màn hình
       function resizeImage(image, width, height) {
-        // Màn hình thực tế của thiết bị là 256x128, vì vậy độ phân giải này được tạo cố định
-        const targetWidth = 256;
-        const targetHeight = 128;
-
+        const targetWidth = DISPLAY_WIDTH;
+        const targetHeight = DISPLAY_HEIGHT;
         const canvas = document.createElement("canvas");
         canvas.width = targetWidth;
         canvas.height = targetHeight;
-
         const ctx = canvas.getContext("2d");
-
-        // Đầu tiên vẽ nền trắng
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-        // Vẽ hình ảnh, sử dụng độ phân giải mục tiêu
-        ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+        const shouldRotate = image.height > image.width;
+        const sourceWidth = shouldRotate ? image.height : image.width;
+        const sourceHeight = shouldRotate ? image.width : image.height;
+        const aspectRatio = sourceWidth / sourceHeight;
+        const isSquareLike = aspectRatio > 0.8 && aspectRatio < 1.25;
+        const scale = isSquareLike
+          ? Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight) *
+            0.92
+          : Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight);
+        const drawWidth = Math.round(sourceWidth * scale);
+        const drawHeight = Math.round(sourceHeight * scale);
+        const offsetX = Math.floor((targetWidth - drawWidth) / 2);
+        const offsetY = Math.floor((targetHeight - drawHeight) / 2);
+
+        ctx.save();
+        if (shouldRotate) {
+          ctx.translate(targetWidth / 2, targetHeight / 2);
+          ctx.rotate(-Math.PI / 2);
+          ctx.drawImage(
+            image,
+            -drawHeight / 2,
+            -drawWidth / 2,
+            drawHeight,
+            drawWidth,
+          );
+        } else {
+          ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+        }
+        ctx.restore();
 
         return ctx.getImageData(0, 0, targetWidth, targetHeight);
       }
@@ -1149,9 +1246,8 @@
 
       // Chuyển đổi hình ảnh sang định dạng dữ liệu phù hợp để hiển thị EPD (chế độ quét dọc Đơn sắc image2lcd)
       function convertImageToEPDData(imageData) {
-        // Thiết bị sử dụng bộ đệm 256x128
-        const targetWidth = 256;
-        const targetHeight = 128;
+        const targetWidth = DISPLAY_WIDTH;
+        const targetHeight = DISPLAY_HEIGHT;
 
         // Lấy thông số xử lý hình ảnh
         const brightnessFactor = imageParams.brightness / 100;
@@ -1200,44 +1296,28 @@
           imageParams.ditherIntensity,
         );
 
-        // Tạo bộ đệm đầu ra (cố định 4096 byte)
+        // Tạo bộ đệm raw đúng với firmware: 104x212 / 8 = 2756 byte
         const epdData = new Uint8Array(BUFFER_SIZE);
-
-        // Đảm bảo dữ liệu được khởi tạo thành 0
-        epdData.fill(0);
+        epdData.fill(0xff);
 
         // Lấy dữ liệu hình ảnh sau khi dithering
         const ditheredData = ditheredImageData.data;
 
-        // Chế độ quét dọc image2lcd: trước tiên duyệt qua các cột x, sau đó duyệt qua các hàng y
-        // Mỗi 8 pixel dọc tạo thành một byte, bit cao trước
-        // Định dạng dữ liệu: 16 byte mỗi 8 hàng (128 hàng/8=16), sắp xếp theo chiều dọc từ trái sang phải, từ trên xuống dưới
+        // Mapping theo firmware Paint_SetPixel với Rotate=270 và MirrorVertical:
+        // pixel logic (x, y) -> raw buffer (X=y, Y=x)
+        const widthByte = PANEL_BUFFER_WIDTH / 8;
         for (let x = 0; x < targetWidth; x++) {
-          for (let y = 0; y < targetHeight; y += 8) {
-            // Mỗi byte chứa 8 pixel dọc
-            let byte = 0;
-            for (let bit = 0; bit < 8; bit++) {
-              // Đảm bảo y+bit không vượt quá phạm vi
-              if (y + bit < targetHeight) {
-                const index = ((y + bit) * targetWidth + x) * 4;
-
-                // Lấy giá trị RGB (sau khi dithering đã là đen trắng)
-                const r = ditheredData[index];
-
-                // Chuyển đổi thành giá trị pixel EPD (0=Đen, 1=Trắng)
-                // Xử lý đảo màu: Giá trị thang xám nhỏ hơn 128 là màu trắng (0), lớn hơn hoặc bằng 128 là màu đen (1)
-                const epdPixel = r < 128 ? 0 : 1;
-
-                // Thiết lập bit tương ứng trong byte (bit cao trước)
-                byte |= epdPixel << (7 - bit);
-              }
+          for (let y = 0; y < targetHeight; y++) {
+            const index = (y * targetWidth + x) * 4;
+            const isBlack = ditheredData[index] < 128;
+            if (!isBlack) {
+              continue;
             }
 
-            // Tính toán vị trí trong dữ liệu EPD
-            // Mỗi cột có 16 byte (128 hàng/8=16), vì vậy offset cột là x * 16
-            // Offset hàng là (y / 8), vì mỗi 8 hàng tạo thành một byte
-            const epdIndex = x * (targetHeight / 8) + y / 8;
-            epdData[epdIndex] = byte;
+            const rawX = y;
+            const rawY = x;
+            const epdIndex = Math.floor(rawX / 8) + rawY * widthByte;
+            epdData[epdIndex] &= ~(0x80 >> (rawX % 8));
           }
         }
 
@@ -1302,9 +1382,8 @@
         try {
           updateStatus("Đang tạo mã hình ảnh...");
 
-          // Kiểm tra xem IMAGE_WIDTH và IMAGE_HEIGHT đã được định nghĩa chưa
-          console.log("IMAGE_WIDTH:", IMAGE_WIDTH);
-          console.log("IMAGE_HEIGHT:", IMAGE_HEIGHT);
+          console.log("DISPLAY_WIDTH:", DISPLAY_WIDTH);
+          console.log("DISPLAY_HEIGHT:", DISPLAY_HEIGHT);
 
           // Đọc tệp hình ảnh
           updateStatus("Đang đọc tệp hình ảnh...");
@@ -1313,11 +1392,7 @@
 
           // Điều chỉnh kích thước hình ảnh
           updateStatus("Đang điều chỉnh kích thước hình ảnh...");
-          const resizedImageData = resizeImage(
-            image,
-            IMAGE_WIDTH,
-            IMAGE_HEIGHT,
-          );
+          const resizedImageData = resizeImage(image, DISPLAY_WIDTH, DISPLAY_HEIGHT);
           console.log(
             "Điều chỉnh kích thước hình ảnh thành công, resizedImageData:",
             resizedImageData,
@@ -1482,11 +1557,7 @@
           const image = await createImageBitmap(file);
 
           // Điều chỉnh kích thước hình ảnh
-          const resizedImageData = resizeImage(
-            image,
-            IMAGE_WIDTH,
-            IMAGE_HEIGHT,
-          );
+          const resizedImageData = resizeImage(image, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
           // Chuyển đổi sang định dạng dữ liệu EPD
           const epdData = convertImageToEPDData(resizedImageData);

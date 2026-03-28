@@ -50,6 +50,13 @@ h1 {
   margin: 20px 0;
 }
 
+.fabric-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
 .setting-group {
   display: flex;
   flex-direction: column;
@@ -63,6 +70,7 @@ h1 {
 }
 
 .setting-group select,
+.setting-group input[type="text"],
 .setting-group input[type="range"] {
   width: 100%;
   padding: 8px;
@@ -225,6 +233,10 @@ button.control-btn {
   }
 
   .image-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .fabric-form {
     grid-template-columns: 1fr;
   }
 }

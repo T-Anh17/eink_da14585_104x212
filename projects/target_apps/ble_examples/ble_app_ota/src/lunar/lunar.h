@@ -1,8 +1,9 @@
 #ifndef _LUNAR_H_
 #define _LUNAR_H_
 
-#include <stdint.h>
 #include "DEV_Config.h"
+#include <stdint.h>
+
 
 struct Lunar_Date {
   uint16_t Year;
@@ -23,6 +24,7 @@ extern const char JieQiStr[24][16];
 // Khai báo các hàm xử lý
 void LUNAR_SolarToLunar(struct Lunar_Date *lunar, uint16_t solar_year,
                         uint8_t solar_month, uint8_t solar_date);
+const char* LUNAR_GetYearName(const struct Lunar_Date *lunar);
 uint8_t LUNAR_GetZodiac(const struct Lunar_Date *lunar);
 uint8_t LUNAR_GetStem(const struct Lunar_Date *lunar);
 uint8_t LUNAR_GetBranch(const struct Lunar_Date *lunar);
