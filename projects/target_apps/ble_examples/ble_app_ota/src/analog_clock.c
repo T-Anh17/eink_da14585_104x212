@@ -154,19 +154,20 @@ void draw_calendar_with_analog_clock(uint32_t unix_time, bool force_redraw) {
     // Vẽ tiêu đề các thứ trong tuần
     for (uint8_t i = 0; i < 7; i++) {
       uint8_t x_pos = x_start + i * cell_width;
-      EPD_DrawUTF8(x_pos + 2, y_pos - 2, 0, week_names_vi[i], EPD_ASCII_Font8,
+      EPD_DrawUTF8(x_pos + 3, y_pos - 2, 0, week_names_vi[i], EPD_ASCII_Font8,
                    0, WHITE, BLACK);
     }
 
     for (uint8_t day = 1; day <= days_count; day++) {
-      uint8_t x_pos = x_start + col * cell_width + 2;
+      uint8_t x_pos = x_start + col * cell_width + (day >= 10 ? 2 : 5);
       uint8_t y_day = y_start + row * cell_height + 1;
 
       sprintf(day_buf, "%d", day);
 
       if (day == current_day) {
         // Vẽ ô vuông đen cho ngày hiện tại
-        Paint_DrawRectangle(x_pos - 2, y_day, x_pos + 8, y_day + 13, BLACK,
+        Paint_DrawRectangle(x_pos - (day >= 10 ? 1 : 1), y_day,
+                            x_pos + (day >= 10 ? 11 : 9), y_day + 13, BLACK,
                             DOT_PIXEL_1X1, DRAW_FILL_FULL);
         EPD_DrawUTF8(x_pos, y_day, 0, day_buf, EPD_ASCII_Font8, 0, WHITE,
                      BLACK);
