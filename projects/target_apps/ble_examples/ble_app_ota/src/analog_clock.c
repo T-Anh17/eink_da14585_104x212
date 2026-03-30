@@ -99,22 +99,9 @@ void draw_analog_clock(uint16_t x, uint16_t y, uint16_t size,
   draw_clock_hands(center_x, center_y, tm.tm_hour, tm.tm_min, radius);
 }
 
-extern uint8_t epd_buffer[];
 void draw_calendar_with_analog_clock(uint32_t unix_time, bool force_redraw) {
   tm_t tm;
   transformTime(unix_time, &tm);
-
-  if (force_redraw) {
-    Paint_NewImage(epd_buffer, EPD_2IN13_V2_WIDTH, EPD_2IN13_V2_HEIGHT, 270,
-                   WHITE);
-    Paint_SelectImage(epd_buffer);
-    Paint_SetMirroring(MIRROR_VERTICAL);
-    Paint_Clear(WHITE);
-  } else {
-    Paint_SelectImage(epd_buffer);
-    Paint_SetMirroring(MIRROR_VERTICAL);
-    Paint_Clear(WHITE);
-  }
 
   uint16_t year = tm.tm_year + YEAR0;
   uint8_t month = tm.tm_mon + 1;

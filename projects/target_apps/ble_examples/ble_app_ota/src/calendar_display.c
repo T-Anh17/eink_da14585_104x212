@@ -7,7 +7,6 @@
 #include "lunar/lunar.h"
 #include <stdio.h>
 
-extern uint8_t epd_buffer[];
 // Bảng số ngày trong tháng
 static const uint8_t days_in_month[2][12] = {
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
@@ -59,20 +58,19 @@ static void draw_calendar_grid(uint16_t year, uint8_t month,
   uint8_t col = first_day;
 
   for (uint8_t day = 1; day <= days_count; day++) {
-    uint8_t x_pos = x_start + (col * cell_w);
+    uint8_t x_pos = x_start + (col * cell_w) + (day >= 10 ? 1 : 4);
     uint8_t y_pos = y_start + (row * cell_h);
 
     sprintf(day_buf, "%d", day);
 
     if (day == current_day) {
       // Vẽ ô vuông đen cho ngày hiện tại
-      Paint_DrawRectangle(x_pos - 1, y_pos - 1, x_pos + 14, y_pos + 11, BLACK,
+      Paint_DrawRectangle(x_pos - (day >= 10 ? 0 : 2), y_pos,
+                          x_pos + (day >= 10 ? 10 : 8), y_pos + 13, BLACK,
                           DOT_PIXEL_1X1, DRAW_FILL_FULL);
-      EPD_DrawUTF8(x_pos + 1, y_pos, 0, day_buf, EPD_ASCII_Font8, 0, WHITE,
-                   BLACK);
+      EPD_DrawUTF8(x_pos, y_pos, 0, day_buf, EPD_ASCII_Font8, 0, WHITE, BLACK);
     } else {
-      EPD_DrawUTF8(x_pos + 1, y_pos, 0, day_buf, EPD_ASCII_Font8, 0, BLACK,
-                   WHITE);
+      EPD_DrawUTF8(x_pos, y_pos, 0, day_buf, EPD_ASCII_Font8, 0, BLACK, WHITE);
     }
 
     col++;
@@ -115,18 +113,6 @@ static void draw_right_panel(tm_t *tm) {
 void draw_calendar_page(uint32_t unix_time, bool force_redraw) {
   tm_t tm;
   transformTime(unix_time, &tm);
-
-  if (force_redraw) {
-    Paint_NewImage(epd_buffer, EPD_2IN13_V2_WIDTH, EPD_2IN13_V2_HEIGHT, 270,
-                   WHITE);
-    Paint_SelectImage(epd_buffer);
-    Paint_SetMirroring(MIRROR_VERTICAL);
-    Paint_Clear(WHITE);
-  } else {
-    Paint_SelectImage(epd_buffer);
-    Paint_SetMirroring(MIRROR_VERTICAL);
-    Paint_Clear(WHITE);
-  }
 
   // Vẽ khung và tiêu đề thứ
   draw_layout_and_header();
