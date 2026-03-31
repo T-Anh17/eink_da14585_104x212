@@ -59,7 +59,7 @@
             Chế độ lịch
           </button>
           <button id="calendarAnalogModeBtn" disabled="" class="control-btn">
-            Chế độ lịch + đồng hồ
+            Chế độ lịch & đồng hồ
           </button>
           <button id="fabricRecordModeBtn" disabled="" class="control-btn">
             Chế độ thẻ kho
@@ -1002,7 +1002,11 @@
           const image = await createImageBitmap(file);
 
           // Điều chỉnh kích thước hình ảnh
-          const resizedImageData = resizeImage(image, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+          const resizedImageData = resizeImage(
+            image,
+            DISPLAY_WIDTH,
+            DISPLAY_HEIGHT,
+          );
 
           // Chuyển đổi sang định dạng dữ liệu EPD
           const epdData = convertImageToEPDData(resizedImageData);
@@ -1392,7 +1396,11 @@
 
           // Điều chỉnh kích thước hình ảnh
           updateStatus("Đang điều chỉnh kích thước hình ảnh...");
-          const resizedImageData = resizeImage(image, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+          const resizedImageData = resizeImage(
+            image,
+            DISPLAY_WIDTH,
+            DISPLAY_HEIGHT,
+          );
           console.log(
             "Điều chỉnh kích thước hình ảnh thành công, resizedImageData:",
             resizedImageData,
@@ -1557,7 +1565,11 @@
           const image = await createImageBitmap(file);
 
           // Điều chỉnh kích thước hình ảnh
-          const resizedImageData = resizeImage(image, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+          const resizedImageData = resizeImage(
+            image,
+            DISPLAY_WIDTH,
+            DISPLAY_HEIGHT,
+          );
 
           // Chuyển đổi sang định dạng dữ liệu EPD
           const epdData = convertImageToEPDData(resizedImageData);

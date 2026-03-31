@@ -293,12 +293,46 @@ void spi_flash_peripheral_init(void) {
   spi_flash_auto_detect(&dev_id);
 }
 
+void do_img_load(void) {
+  uint32_t actual_size;
+  // Giai quyet xung dot chan P0_5 (EPD_DC vs SPI_DI)
+  GPIO_ConfigurePin(GPIO_PORT_0, GPIO_PIN_5, INPUT, PID_SPI_DI, false);
+  arch_printf("PIF SET P0_5 to SPI_DI\n");
+  
+  spi_flash_peripheral_init();
+  int8_t status = spi_flash_read_data((uint8_t *)&imgheader, IMG_HEADER_ADDRESS,
+                                      sizeof(img_header_t), &actual_size);
+  arch_printf("IMG LOAD: addr=0x%lx, status=%d, read=%lu\n", IMG_HEADER_ADDRESS, status, actual_size);
+  
+  if (status == 0 && imgheader.signature[0] == IMG_HEADER_SIGNATURE1 &&
+      imgheader.signature[1] == IMG_HEADER_SIGNATURE2 &&
+      imgheader.validflag == IMG_HEADER_VALID) {
+    uint32_t read_size = imgheader.code_size;
+    if (read_size == 0 || read_size > epd_buffer_size) {
+      read_size = epd_buffer_size;
+    }
+    status = spi_flash_read_data(epd_buffer, img_flash_payload_address, read_size,
+                        &actual_size);
+    arch_printf("IMG DATA LOAD: size=%lu, status=%d, read=%lu\n", read_size, status, actual_size);
+  } else {
+    arch_printf("IMG LOAD FAIL: sig=%02x%02x, valid=%02x\n", 
+                imgheader.signature[0], imgheader.signature[1], imgheader.validflag);
+  }
+  spi_flash_ultra_deep_power_down();
+  
+  // Khoi phuc chan P0_5 cho EPD_DC
+  GPIO_ConfigurePin(GPIO_PORT_0, GPIO_PIN_5, OUTPUT, PID_GPIO, false);
+  arch_printf("PIF RESTORE P0_5 to EPD_DC\n");
+}
+
 void do_img_save(void) {
   uint32_t actual_size;
   if (imgheader.signature[0] == IMG_HEADER_SIGNATURE1 &&
       imgheader.signature[1] == IMG_HEADER_SIGNATURE2 &&
       imgheader.validflag != IMG_HEADER_VALID) {
     imgheader.validflag = IMG_HEADER_VALID;
+    // Giai quyet xung dot chan P0_5 (EPD_DC vs SPI_DI)
+    GPIO_ConfigurePin(GPIO_PORT_0, GPIO_PIN_5, INPUT, PID_SPI_DI, false);
     spi_flash_peripheral_init();
     {
       const uint32_t total_size = sizeof(img_header_t) + epd_buffer_size;
@@ -313,6 +347,7 @@ void do_img_save(void) {
         if (status != 0) {
           arch_printf("img erase fail:%d@0x%lx\n", status, erase_addr);
           spi_flash_ultra_deep_power_down();
+          GPIO_ConfigurePin(GPIO_PORT_0, GPIO_PIN_5, OUTPUT, PID_GPIO, false);
           return;
         }
       }
@@ -322,6 +357,7 @@ void do_img_save(void) {
       if (status != 0 || actual_size != sizeof(img_header_t)) {
         arch_printf("img header write fail:%d,%lu\n", status, actual_size);
         spi_flash_ultra_deep_power_down();
+        GPIO_ConfigurePin(GPIO_PORT_0, GPIO_PIN_5, OUTPUT, PID_GPIO, false);
         return;
       }
 
@@ -330,12 +366,19 @@ void do_img_save(void) {
       if (status != 0 || actual_size != epd_buffer_size) {
         arch_printf("img payload write fail:%d,%lu\n", status, actual_size);
         spi_flash_ultra_deep_power_down();
+        GPIO_ConfigurePin(GPIO_PORT_0, GPIO_PIN_5, OUTPUT, PID_GPIO, false);
         return;
       }
 
       arch_printf("img saved:%lu bytes\n", total_size);
     }
     spi_flash_ultra_deep_power_down();
+    
+    // Khoi phuc chan P0_5 cho EPD_DC
+    GPIO_ConfigurePin(GPIO_PORT_0, GPIO_PIN_5, OUTPUT, PID_GPIO, false);
+    arch_printf("PIF RESTORE P0_5 to EPD_DC\n");
+  } else {
+    arch_printf("IMG SAVE CANCELLED: invalid conditions\n");
   }
 }
 
@@ -371,23 +414,7 @@ void my_app_on_db_init_complete(void) {
   last_minute = 255;
 
   timer_used_min = app_easy_timer(100, do_min_work_with_analog_clock);
-  spi_flash_peripheral_init();
-  uint32_t actual_size;
-  int8_t status = spi_flash_read_data((uint8_t *)&imgheader, IMG_HEADER_ADDRESS,
-                                      sizeof(img_header_t), &actual_size);
-  arch_printf("imgheader read:%d,status:%d", actual_size, status);
-  if (imgheader.signature[0] == IMG_HEADER_SIGNATURE1 &&
-      imgheader.signature[1] == IMG_HEADER_SIGNATURE2 &&
-      imgheader.validflag == IMG_HEADER_VALID) {
-    uint32_t read_size = imgheader.code_size;
-    if (read_size == 0 || read_size > epd_buffer_size) {
-      read_size = epd_buffer_size;
-    }
-    spi_flash_read_data(epd_buffer, img_flash_payload_address, read_size,
-                        &actual_size);
-    arch_printf("epd_buffer read:%d\n", actual_size);
-  }
-  spi_flash_ultra_deep_power_down();
+  do_img_load();
   cur_batt_level = 101;
   app_batt_lvl();
 }
@@ -565,6 +592,26 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
     return;
   }
 
+  // Lệnh 0x04 và 0xAA: lưu vào Flash - bypass guard để có thể lưu ngay sau khi
+  // trigger display
+  if (param->value[0] == 0x04 || param->value[0] == 0xAA) {
+    do_img_save();
+    out_buffer[0] = param->value[0];
+    out_buffer[1] = 0x01;
+    bls_att_pushNotifyData(SVC1_IDX_LED_STATE_VAL, out_buffer, 2);
+    return;
+  }
+
+  // Lệnh 0x06: Set image size
+  if (param->value[0] == 0x06) {
+    if (payload_len >= 5) {
+      imgheader.code_size = (payload[1] << 24) | (payload[2] << 16) |
+                            (payload[3] << 8) | payload[4];
+      arch_printf("Set image size: %lu\n", imgheader.code_size);
+    }
+    return;
+  }
+
   // Các lệnh khác cần EPD rảnh (step == 0)
   if (step != 0) {
     out_buffer[0] = 0x00;
@@ -578,18 +625,9 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
     ASSERT_MIN_LEN(payload_len, 2);
     return;
   // 0x01, 0x02, 0x03 đã được xử lý bên trên (bypass guard step!=0)
-  case 0x04: // Giải mã và hiển thị hình ảnh TIFF
-    do_img_save();
-    out_buffer[0] = 0x04;
-    out_buffer[1] = 0x01;
-    bls_att_pushNotifyData(SVC1_IDX_LED_STATE_VAL, out_buffer, 2);
-    // param_update_request(1);
+  case 0x06: // App đã gửi metadata qua if phía trên
     return;
-  case 0x06: // App có thể gửi metadata kích thước ảnh, firmware hiện dùng
-             // buffer cố định
-    return;
-  case 0xAA:
-    do_img_save();
+  case 0xAA: // Đã xử lý ở trên
     break;
   case 0xAB:
     platform_reset(RESET_NO_ERROR);
@@ -629,18 +667,18 @@ void user_svc1_led_wr_ind_handler(ke_msg_id_t const msgid,
   case 0xE1: // Lệnh chuyển đổi chế độ kèm chỉ số (từ app)
     if (payload_len >= 2) {
       uint8_t mode_idx = payload[1];
-      // Mapping app-level: đúng với những gì app gửi
-      // 0x00=IMAGE, 0x01=CALENDAR, 0x02=TIME
-      // 0x03=CALENDAR_ANALOG, 0x04=FABRIC_RECORD
+      // 0x00=TIME, 0x01=CALENDAR, 0x02=CALENDAR_ANALOG
+      // 0x03=IMAGE, 0x04=FABRIC_RECORD
       if (mode_idx == 0x00)
-        current_display_mode = DISPLAY_MODE_IMAGE;
+        current_display_mode = DISPLAY_MODE_TIME;
       else if (mode_idx == 0x01)
         current_display_mode = DISPLAY_MODE_CALENDAR;
       else if (mode_idx == 0x02)
-        current_display_mode = DISPLAY_MODE_TIME;
-      else if (mode_idx == 0x03)
         current_display_mode = DISPLAY_MODE_CALENDAR_ANALOG;
-      else if (mode_idx == 0x04)
+      else if (mode_idx == 0x03) {
+        current_display_mode = DISPLAY_MODE_IMAGE;
+        do_img_load();
+      } else if (mode_idx == 0x04)
         current_display_mode = DISPLAY_MODE_FABRIC_RECORD;
 
       last_update_time = 0;
@@ -740,18 +778,19 @@ void user_svc2_wr_ind_handler(ke_msg_id_t const msgid,
     // Chuyển sang chế độ hiển thị kèm chỉ số (từ app)
     if (param->length >= 2) {
       uint8_t mode_idx = param->value[1];
-      // Mapping app-level: đúng với những gì app gửi
-      // 0x00=IMAGE, 0x01=CALENDAR, 0x02=TIME
-      // 0x03=CALENDAR_ANALOG, 0x04=FABRIC_RECORD
+      // Mapping app-level: đúng với những gì app gửi (Step 184 App.tsx)
+      // 0x00=TIME, 0x01=CALENDAR, 0x02=CALENDAR_ANALOG
+      // 0x03=IMAGE, 0x04=FABRIC_RECORD
       if (mode_idx == 0x00)
-        current_display_mode = DISPLAY_MODE_IMAGE;
+        current_display_mode = DISPLAY_MODE_TIME;
       else if (mode_idx == 0x01)
         current_display_mode = DISPLAY_MODE_CALENDAR;
       else if (mode_idx == 0x02)
-        current_display_mode = DISPLAY_MODE_TIME;
-      else if (mode_idx == 0x03)
         current_display_mode = DISPLAY_MODE_CALENDAR_ANALOG;
-      else if (mode_idx == 0x04)
+      else if (mode_idx == 0x03) {
+        current_display_mode = DISPLAY_MODE_IMAGE;
+        do_img_load();
+      } else if (mode_idx == 0x04)
         current_display_mode = DISPLAY_MODE_FABRIC_RECORD;
 
       last_update_time = 0;
