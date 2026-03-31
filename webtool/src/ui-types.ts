@@ -55,16 +55,13 @@ type ImageWorkspaceProps = {
   connected: boolean;
   progress: number;
   imageFile: File | null;
-  imageCode: string;
   imageParams: ImageParams;
   previewRef: React.RefObject<HTMLCanvasElement>;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onFileDrop: (file: File) => void;
-  onImageCodeChange: (value: string) => void;
   onImageParamChange: <K extends keyof ImageParams>(key: K, value: ImageParams[K]) => void;
   onResetImageParams: () => void;
   onSendAll: () => void;
-  onUploadEditedCode: () => void;
 };
 
 type StatusPanelProps = {

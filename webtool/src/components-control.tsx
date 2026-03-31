@@ -60,7 +60,7 @@ function ScreenControlPanel(props: ScreenControlPanelProps) {
       image: isVi ? "Hình ảnh" : "Image",
       calendar: isVi ? "Lịch" : "Calendar",
       clock: isVi ? "Đồng hồ" : "Clock",
-      calendarAnalog: isVi ? "Lịch + đồng hồ" : "Calendar + clock",
+      calendarAnalog: isVi ? "Lịch & đồng hồ" : "Calendar & clock",
       fabric: isVi ? "Thẻ kho" : "Fabric card",
     };
     return labels[mode];

@@ -80,13 +80,23 @@ const screenModes: Array<{
   description: string;
   modeValue: number;
 }> = [
-  { key: "image", label: "Hình ảnh", description: "Hiển thị ảnh đơn sắc", modeValue: 0 },
+  {
+    key: "clock",
+    label: "Đồng hồ",
+    description: "Đồng hồ thời gian",
+    modeValue: 0,
+  },
   { key: "calendar", label: "Lịch", description: "Lịch cơ bản", modeValue: 1 },
-  { key: "clock", label: "Đồng hồ", description: "Đồng hồ thời gian", modeValue: 2 },
   {
     key: "calendarAnalog",
-    label: "Lịch + đồng hồ",
+    label: "Lịch & đồng hồ",
     description: "Lịch và đồng hồ kim",
+    modeValue: 2,
+  },
+  {
+    key: "image",
+    label: "Hình ảnh",
+    description: "Hiển thị ảnh đơn sắc",
     modeValue: 3,
   },
   { key: "fabric", label: "Thẻ kho", description: "Thẻ kho vải", modeValue: 4 },
@@ -162,7 +172,13 @@ function resizeImage(image: ImageBitmap, width: number, height: number) {
   if (shouldRotate) {
     ctx.translate(width / 2, height / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.drawImage(image, -drawHeight / 2, -drawWidth / 2, drawHeight, drawWidth);
+    ctx.drawImage(
+      image,
+      -drawHeight / 2,
+      -drawWidth / 2,
+      drawHeight,
+      drawWidth,
+    );
   } else {
     ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
   }
@@ -171,7 +187,11 @@ function resizeImage(image: ImageBitmap, width: number, height: number) {
   return ctx.getImageData(0, 0, width, height);
 }
 
-function applyDithering(imageData: ImageData, ditherType: DitherType, intensity: number) {
+function applyDithering(
+  imageData: ImageData,
+  ditherType: DitherType,
+  intensity: number,
+) {
   if (ditherType === "none") {
     return imageData;
   }
@@ -185,7 +205,9 @@ function applyDithering(imageData: ImageData, ditherType: DitherType, intensity:
       for (let x = 0; x < width; x += 1) {
         const index = (y * width + x) * 4;
         const oldGray = Math.round(
-          0.299 * output[index] + 0.587 * output[index + 1] + 0.114 * output[index + 2],
+          0.299 * output[index] +
+            0.587 * output[index + 1] +
+            0.114 * output[index + 2],
         );
         const newGray = oldGray < 128 ? 0 : 255;
         const error = (oldGray - newGray) * intensity;
@@ -206,7 +228,10 @@ function applyDithering(imageData: ImageData, ditherType: DitherType, intensity:
           const ny = y + spread.y;
           if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
             const nIndex = (ny * width + nx) * 4;
-            output[nIndex] = Math.max(0, Math.min(255, output[nIndex] + error * spread.factor));
+            output[nIndex] = Math.max(
+              0,
+              Math.min(255, output[nIndex] + error * spread.factor),
+            );
             output[nIndex + 1] = Math.max(
               0,
               Math.min(255, output[nIndex + 1] + error * spread.factor),
@@ -232,10 +257,13 @@ function applyDithering(imageData: ImageData, ditherType: DitherType, intensity:
       for (let x = 0; x < width; x += 1) {
         const index = (y * width + x) * 4;
         const oldGray = Math.round(
-          0.299 * output[index] + 0.587 * output[index + 1] + 0.114 * output[index + 2],
+          0.299 * output[index] +
+            0.587 * output[index + 1] +
+            0.114 * output[index + 2],
         );
         const threshold =
-          (ditherMatrix[y % matrixSize][x % matrixSize] / (matrixSize * matrixSize)) *
+          (ditherMatrix[y % matrixSize][x % matrixSize] /
+            (matrixSize * matrixSize)) *
           255 *
           intensity;
         const newGray = oldGray < threshold ? 0 : 255;
@@ -312,8 +340,10 @@ function convertImageToEPDData(imageData: ImageData, imageParams: ImageParams) {
 function App() {
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const deviceRef = useRef<BluetoothDeviceWithGatt | null>(null);
-  const controlCharacteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
-  const dataCharacteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+  const controlCharacteristicRef =
+    useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+  const dataCharacteristicRef =
+    useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const rotationTimerRef = useRef<number | null>(null);
   const rotationIndexRef = useRef(0);
 
@@ -321,16 +351,22 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [locale, setLocale] = useState<LocaleMode>("vi");
   const [theme, setTheme] = useState<ThemeMode>("light");
-  const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()));
+  const [currentTime, setCurrentTime] = useState(() =>
+    formatCurrentTime(new Date()),
+  );
   const [deviceName, setDeviceName] = useState("Chưa kết nối");
   const [connected, setConnected] = useState(false);
-  const [statusLines, setStatusLines] = useState<string[]>(["Hệ thống sẵn sàng."]);
+  const [statusLines, setStatusLines] = useState<string[]>([
+    "Hệ thống sẵn sàng.",
+  ]);
   const [progress, setProgress] = useState(0);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageCode, setImageCode] = useState("");
-  const [currentScreenMode, setCurrentScreenMode] = useState<ScreenModeKey>("clock");
-  const [imageParams, setImageParams] = useState<ImageParams>(initialImageParams);
-  const [fabricFields, setFabricFields] = useState<FabricField[]>(initialFabricFields);
+  const [currentScreenMode, setCurrentScreenMode] =
+    useState<ScreenModeKey>("clock");
+  const [imageParams, setImageParams] =
+    useState<ImageParams>(initialImageParams);
+  const [fabricFields, setFabricFields] =
+    useState<FabricField[]>(initialFabricFields);
   const [fabricModalOpen, setFabricModalOpen] = useState(false);
   const [rotationSelection, setRotationSelection] = useState<ScreenModeKey[]>([
     "clock",
@@ -351,7 +387,9 @@ function App() {
   );
 
   const currentModeConfig = useMemo(
-    () => screenModes.find((mode) => mode.key === currentScreenMode) || screenModes[0],
+    () =>
+      screenModes.find((mode) => mode.key === currentScreenMode) ||
+      screenModes[0],
     [currentScreenMode],
   );
 
@@ -360,14 +398,17 @@ function App() {
       image: locale === "vi" ? "Hình ảnh" : "Image",
       calendar: locale === "vi" ? "Lịch" : "Calendar",
       clock: locale === "vi" ? "Đồng hồ" : "Clock",
-      calendarAnalog: locale === "vi" ? "Lịch + đồng hồ" : "Calendar + clock",
+      calendarAnalog: locale === "vi" ? "Lịch & đồng hồ" : "Calendar & clock",
       fabric: locale === "vi" ? "Thẻ kho" : "Fabric card",
     };
     return labels[mode];
   };
 
   const appendStatus = (message: string) => {
-    setStatusLines((prev) => [...prev, `[${new Date().toLocaleTimeString("vi-VN")}] ${message}`]);
+    setStatusLines((prev) => [
+      ...prev,
+      `[${new Date().toLocaleTimeString("vi-VN")}] ${message}`,
+    ]);
     console.log(message);
   };
 
@@ -379,7 +420,11 @@ function App() {
     setLoadingState({ active: false, title: "", detail: "" });
   };
 
-  const runBusyTask = async (title: string, detail: string, task: () => Promise<void>) => {
+  const runBusyTask = async (
+    title: string,
+    detail: string,
+    task: () => Promise<void>,
+  ) => {
     setLoading(title, detail);
     try {
       await task();
@@ -554,7 +599,6 @@ function App() {
     const image = await createImageBitmap(file);
     const resized = resizeImage(image, DISPLAY_WIDTH, DISPLAY_HEIGHT);
     const epdData = convertImageToEPDData(resized, imageParams);
-    setImageCode(imageDataToString(epdData));
     return epdData;
   };
 
@@ -570,7 +614,11 @@ function App() {
     while (offset < epdData.length) {
       const size = Math.min(chunkSize, epdData.length - offset);
       const chunk = epdData.slice(offset, offset + size);
-      await sendDataCommand(CMD_WRITE_DATA, [(offset >> 8) & 0xff, offset & 0xff, ...chunk]);
+      await sendDataCommand(CMD_WRITE_DATA, [
+        (offset >> 8) & 0xff,
+        offset & 0xff,
+        ...chunk,
+      ]);
 
       offset += size;
       const percent = Math.round((offset / epdData.length) * 100);
@@ -584,14 +632,21 @@ function App() {
     setStatusLines([]);
     setProgress(0);
     if (!bluetoothAvailable) {
-      appendStatus("Trinh duyet khong ho tro Web Bluetooth. Hay dung Chrome hoac Edge.");
+      appendStatus(
+        "Trinh duyet khong ho tro Web Bluetooth. Hay dung Chrome hoac Edge.",
+      );
       return;
     }
 
     try {
-      const bluetooth = (navigator as Navigator & { bluetooth: Bluetooth }).bluetooth;
+      const bluetooth = (navigator as Navigator & { bluetooth: Bluetooth })
+        .bluetooth;
       const device = (await bluetooth.requestDevice({
-        filters: [{ namePrefix: "IOT-EINK" }, { namePrefix: "DLG" }, { namePrefix: "EINK" }],
+        filters: [
+          { namePrefix: "IOT-EINK" },
+          { namePrefix: "DLG" },
+          { namePrefix: "EINK" },
+        ],
         optionalServices: [SERVICE_UUID],
       })) as BluetoothDeviceWithGatt;
 
@@ -625,12 +680,17 @@ function App() {
       });
 
       const service = await server.getPrimaryService(SERVICE_UUID);
-      controlCharacteristicRef.current = await service.getCharacteristic(CHARACTERISTIC_UUID);
-      dataCharacteristicRef.current = await service.getCharacteristic(DATA_CHARACTERISTIC_UUID);
+      controlCharacteristicRef.current =
+        await service.getCharacteristic(CHARACTERISTIC_UUID);
+      dataCharacteristicRef.current = await service.getCharacteristic(
+        DATA_CHARACTERISTIC_UUID,
+      );
       setConnected(true);
       appendStatus("Kết nối thành công.");
     } catch (error) {
-      appendStatus(`Kết nối thất bại: ${error instanceof Error ? error.message : String(error)}`);
+      appendStatus(
+        `Kết nối thất bại: ${error instanceof Error ? error.message : String(error)}`,
+      );
       resetConnection();
     }
   };
@@ -645,18 +705,27 @@ function App() {
   };
 
   const handleSyncTime = async () => {
-    await runBusyTask("Đồng bộ thời gian", "Gửi thời gian hiện tại sang thiết bị", async () => {
-      try {
-        const now = new Date();
-        const unixTime = Math.floor(now.getTime() / 1000) - now.getTimezoneOffset() * 60;
-        await sendTimestamp(unixTime);
-        await delay(200);
-        await sendCommand(0xe2);
-        appendStatus(`Đồng bộ thời gian thành công: ${now.toLocaleString("vi-VN")}`);
-      } catch (error) {
-        appendStatus(`Đồng bộ thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
+    await runBusyTask(
+      "Đồng bộ thời gian",
+      "Gửi thời gian hiện tại sang thiết bị",
+      async () => {
+        try {
+          const now = new Date();
+          const unixTime =
+            Math.floor(now.getTime() / 1000) - now.getTimezoneOffset() * 60;
+          await sendTimestamp(unixTime);
+          await delay(200);
+          await sendCommand(0xe2);
+          appendStatus(
+            `Đồng bộ thời gian thành công: ${now.toLocaleString("vi-VN")}`,
+          );
+        } catch (error) {
+          appendStatus(
+            `Đồng bộ thất bại: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      },
+    );
   };
 
   const handleStartRotation = () => {
@@ -675,10 +744,13 @@ function App() {
     appendStatus(`Bật lịch xoay màn hình mỗi ${rotationIntervalSec} giây.`);
 
     rotationTimerRef.current = window.setInterval(() => {
-      const nextMode = rotationSelection[rotationIndexRef.current % rotationSelection.length];
+      const nextMode =
+        rotationSelection[rotationIndexRef.current % rotationSelection.length];
       rotationIndexRef.current += 1;
       void sendScreenMode(nextMode).catch((error) => {
-        appendStatus(`Lich xoay bi dung: ${error instanceof Error ? error.message : String(error)}`);
+        appendStatus(
+          `Lich xoay bi dung: ${error instanceof Error ? error.message : String(error)}`,
+        );
         stopRotation(true);
       });
     }, rotationIntervalSec * 1000);
@@ -691,115 +763,29 @@ function App() {
   };
 
   const handleUploadFabric = async () => {
-    await runBusyTask("Đang nạp thẻ kho", "Gửi toàn bộ thông tin thẻ kho lên màn hình", async () => {
-      try {
-        const encoder = new TextEncoder();
-        for (let i = 0; i < fabricFields.length; i += 1) {
-          const valueBytes = Array.from(encoder.encode(fabricFields[i].value.trim()));
-          await sendCommand(0xf0, [i, ...valueBytes]);
-          await delay(40);
+    await runBusyTask(
+      "Đang nạp thẻ kho",
+      "Gửi toàn bộ thông tin thẻ kho lên màn hình",
+      async () => {
+        try {
+          const encoder = new TextEncoder();
+          for (let i = 0; i < fabricFields.length; i += 1) {
+            const valueBytes = Array.from(
+              encoder.encode(fabricFields[i].value.trim()),
+            );
+            await sendCommand(0xf0, [i, ...valueBytes]);
+            await delay(40);
+          }
+          await sendScreenMode("fabric");
+          appendStatus("Đã nạp thông tin thẻ kho lên thiết bị.");
+          setFabricModalOpen(false);
+        } catch (error) {
+          appendStatus(
+            `Nạp thẻ kho thất bại: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
-        await sendScreenMode("fabric");
-        appendStatus("Đã nạp thông tin thẻ kho lên thiết bị.");
-        setFabricModalOpen(false);
-      } catch (error) {
-        appendStatus(`Nạp thẻ kho thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
-  };
-
-  const handleGenerateCode = async () => {
-    if (!imageFile) {
-      appendStatus("Vui lòng chọn một hình ảnh.");
-      return;
-    }
-
-    await runBusyTask("Đang xử lý ảnh", "Tạo mã EPD từ hình ảnh đã chọn", async () => {
-      try {
-        await prepareImageData(imageFile);
-        appendStatus("Đã tạo mã hình ảnh thành công.");
-      } catch (error) {
-        appendStatus(`Tạo mã thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
-  };
-
-  const handleWriteImage = async () => {
-    if (!imageFile) {
-      appendStatus("Vui lòng chọn một hình ảnh.");
-      return;
-    }
-
-    await runBusyTask("Đang tải ảnh", "Ghi dữ liệu ảnh vào bộ nhớ tạm của thiết bị", async () => {
-      try {
-        const epdData = await prepareImageData(imageFile);
-        setProgress(0);
-        await writeImageData(epdData, imageParams.mtu - 3);
-        appendStatus("Đã ghi dữ liệu hình ảnh thành công.");
-      } catch (error) {
-        appendStatus(`Ghi ảnh thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
-  };
-
-  const handleDisplayImage = async () => {
-    await runBusyTask("Đang hiển thị ảnh", "Làm mới màn hình và hiển thị dữ liệu ảnh hiện có", async () => {
-      try {
-        await sendDataCommand(CMD_DISPLAY_IMAGE);
-        await delay(200);
-        await sendCommand(0xe2);
-        setCurrentScreenMode("image");
-        appendStatus("Đã hiển thị hình ảnh.");
-      } catch (error) {
-        appendStatus(`Hiển thị ảnh thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
-  };
-
-  const handleSaveImage = async () => {
-    await runBusyTask("Đang lưu Flash", "Ghi hình ảnh hiện tại vào Flash", async () => {
-      try {
-        await sendDataCommand(CMD_SAVE_IMAGE);
-        appendStatus("Đã gửi lệnh lưu vào Flash.");
-      } catch (error) {
-        appendStatus(`Lưu Flash thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
-  };
-
-  const handleClear = async () => {
-    await runBusyTask("Đang xóa màn hình", "Gửi lệnh xóa nội dung hiển thị", async () => {
-      try {
-        await sendDataCommand(CMD_CLEAR_DISPLAY, [0xff]);
-        appendStatus("Đã xóa nội dung hiển thị.");
-      } catch (error) {
-        appendStatus(`Xóa màn hình thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
-  };
-
-  const handleUploadEditedCode = async () => {
-    if (!imageCode.trim()) {
-      appendStatus("Cần có mã hình ảnh trước khi tải lên.");
-      return;
-    }
-
-    await runBusyTask("Đang tải mã đã sửa", "Phân tích và đẩy mã hình ảnh đã chỉnh sửa lên thiết bị", async () => {
-      try {
-        const epdData = stringToImageData(imageCode);
-        setProgress(0);
-        await sendScreenMode("image");
-        await delay(300);
-        await writeImageData(epdData, imageParams.mtu - 3);
-        await sendDataCommand(CMD_DISPLAY_IMAGE);
-        await sendDataCommand(CMD_SAVE_IMAGE);
-        await delay(800);
-        await sendCommand(0xe2);
-        appendStatus("Đã tải lên mã hình ảnh đã chỉnh sửa.");
-      } catch (error) {
-        appendStatus(`Tải mã đã sửa thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
+      },
+    );
   };
 
   const handleSendAll = async () => {
@@ -808,22 +794,28 @@ function App() {
       return;
     }
 
-    await runBusyTask("Đang chạy quy trình đầy đủ", "Xử lý ảnh, ghi dữ liệu, hiển thị và lưu Flash", async () => {
-      try {
-        const epdData = await prepareImageData(imageFile);
-        setProgress(0);
-        await sendScreenMode("image");
-        await delay(300);
-        await writeImageData(epdData, 16);
-        await sendDataCommand(CMD_DISPLAY_IMAGE);
-        await sendDataCommand(CMD_SAVE_IMAGE);
-        await delay(800);
-        await sendCommand(0xe2);
-        appendStatus("Đã hoàn tất toàn bộ quy trình tải ảnh.");
-      } catch (error) {
-        appendStatus(`Tải ảnh thất bại: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
+    await runBusyTask(
+      "Loading...",
+      "Xử lý ảnh, ghi dữ liệu, hiển thị và lưu thiết bị",
+      async () => {
+        try {
+          const epdData = await prepareImageData(imageFile);
+          setProgress(0);
+          await sendScreenMode("image");
+          await delay(300);
+          await writeImageData(epdData, 16);
+          await sendDataCommand(CMD_DISPLAY_IMAGE);
+          await sendDataCommand(CMD_SAVE_IMAGE);
+          await delay(800);
+          await sendCommand(0xe2);
+          appendStatus("Đã hoàn tất toàn bộ quy trình tải ảnh.");
+        } catch (error) {
+          appendStatus(
+            `Tải ảnh thất bại: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      },
+    );
   };
 
   const onImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -835,10 +827,15 @@ function App() {
   };
 
   const updateFabricValue = (id: string, value: string) => {
-    setFabricFields((prev) => prev.map((field) => (field.id === id ? { ...field, value } : field)));
+    setFabricFields((prev) =>
+      prev.map((field) => (field.id === id ? { ...field, value } : field)),
+    );
   };
 
-  const updateImageParam = <K extends keyof ImageParams>(key: K, value: ImageParams[K]) => {
+  const updateImageParam = <K extends keyof ImageParams>(
+    key: K,
+    value: ImageParams[K],
+  ) => {
     setImageParams((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -859,8 +856,12 @@ function App() {
           locale={locale}
           sidebarOpen={sidebarOpen}
           onMenuToggle={() => setSidebarOpen((prev) => !prev)}
-          onThemeToggle={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
-          onLocaleToggle={() => setLocale((prev) => (prev === "vi" ? "en" : "vi"))}
+          onThemeToggle={() =>
+            setTheme((prev) => (prev === "light" ? "dark" : "light"))
+          }
+          onLocaleToggle={() =>
+            setLocale((prev) => (prev === "vi" ? "en" : "vi"))
+          }
         />
         <div className="workspace-shell">
           <ModeRail
@@ -871,67 +872,98 @@ function App() {
             onModeChange={setWorkspaceMode}
           />
           <div className="workspace-main">
-            {workspaceMode === "mode-1"
-              ? (
-                <div className="workspace-grid">
-              <ScreenControlPanel
+            {workspaceMode === "mode-1" ? (
+              <div className="workspace-grid">
+                <ScreenControlPanel
+                  locale={locale}
+                  connected={connected}
+                  currentTime={currentTime}
+                  deviceName={deviceName}
+                  bluetoothAvailable={bluetoothAvailable}
+                  currentScreenMode={currentScreenMode}
+                  rotationEnabled={rotationEnabled}
+                  rotationIntervalSec={rotationIntervalSec}
+                  rotationSelection={rotationSelection}
+                  onConnect={() => void handleConnect()}
+                  onDisconnect={handleDisconnect}
+                  onSyncTime={() => void handleSyncTime()}
+                  onOpenFabricModal={() => setFabricModalOpen(true)}
+                  onModeSelect={(mode) =>
+                    void runBusyTask(
+                      "Đang chuyển màn hình",
+                      `Đang chuyển sang ${screenModes.find((item) => item.key === mode)?.label || mode}`,
+                      async () => {
+                        await sendScreenMode(mode);
+                      },
+                    )
+                  }
+                  onRotationToggle={toggleRotationSelection}
+                  onRotationIntervalChange={setRotationIntervalSec}
+                  onRotationStart={handleStartRotation}
+                  onRotationStop={() => stopRotation()}
+                />
+                <ImageWorkspace
+                  locale={locale}
+                  connected={connected}
+                  progress={progress}
+                  imageFile={imageFile}
+                  imageParams={imageParams}
+                  previewRef={previewRef}
+                  onFileChange={onImageFileChange}
+                  onFileDrop={onImageFileDrop}
+                  onImageParamChange={updateImageParam}
+                  onResetImageParams={resetImageParams}
+                  onSendAll={() => void handleSendAll()}
+                />
+                <StatusPanel
+                  locale={locale}
+                  connected={connected}
+                  statusText={statusText}
+                />
+              </div>
+            ) : workspaceMode === "mode-2" ? (
+              <PlaceholderMode
                 locale={locale}
-                connected={connected}
-                currentTime={currentTime}
-                deviceName={deviceName}
-                bluetoothAvailable={bluetoothAvailable}
-                currentScreenMode={currentScreenMode}
-                rotationEnabled={rotationEnabled}
-                rotationIntervalSec={rotationIntervalSec}
-                rotationSelection={rotationSelection}
-                onConnect={() => void handleConnect()}
-                onDisconnect={handleDisconnect}
-                onSyncTime={() => void handleSyncTime()}
-                onOpenFabricModal={() => setFabricModalOpen(true)}
-                onModeSelect={(mode) =>
-                  void runBusyTask(
-                    "Đang chuyển màn hình",
-                    `Đang chuyển sang ${screenModes.find((item) => item.key === mode)?.label || mode}`,
-                    async () => {
-                      await sendScreenMode(mode);
-                    },
-                  )
+                title={
+                  locale === "vi"
+                    ? "Mode 2 đang được đặt cho workflow nâng cao"
+                    : "Mode 2 reserved for advanced workflows"
                 }
-                onRotationToggle={toggleRotationSelection}
-                onRotationIntervalChange={setRotationIntervalSec}
-                onRotationStart={handleStartRotation}
-                onRotationStop={() => stopRotation()}
+                subtitle={locale === "vi" ? "Mở rộng sau" : "Coming later"}
+                points={[
+                  locale === "vi"
+                    ? "Dashboard xem trước nhiều thiết bị"
+                    : "Dashboard for multiple devices",
+                  locale === "vi"
+                    ? "Đồng bộ dữ liệu theo mẫu template"
+                    : "Template-based data sync",
+                  locale === "vi"
+                    ? "Lịch chạy tự động theo ca làm việc"
+                    : "Shift-based scheduling",
+                ]}
               />
-              <ImageWorkspace
+            ) : (
+              <PlaceholderMode
                 locale={locale}
-                connected={connected}
-                progress={progress}
-                imageFile={imageFile}
-                imageCode={imageCode}
-                imageParams={imageParams}
-                previewRef={previewRef}
-                onFileChange={onImageFileChange}
-                onFileDrop={onImageFileDrop}
-                onImageCodeChange={setImageCode}
-                onImageParamChange={updateImageParam}
-                onResetImageParams={resetImageParams}
-                onSendAll={() => void handleSendAll()}
-                onUploadEditedCode={() => void handleUploadEditedCode()}
+                title={
+                  locale === "vi"
+                    ? "Mode 3 đang được đặt cho dashboard bảo trì"
+                    : "Mode 3 reserved for maintenance dashboard"
+                }
+                subtitle={locale === "vi" ? "Mở rộng sau" : "Coming later"}
+                points={[
+                  locale === "vi"
+                    ? "Chẩn đoán kết nối và log nâng cao"
+                    : "Advanced connection diagnostics",
+                  locale === "vi"
+                    ? "Thư viện giao diện cho từng loại màn hình"
+                    : "Screen-specific UI library",
+                  locale === "vi"
+                    ? "Quản lý preset và profile vận hành"
+                    : "Preset and operating profile manager",
+                ]}
               />
-              <StatusPanel locale={locale} connected={connected} statusText={statusText} />
-                </div>
-              )
-              : workspaceMode === "mode-2"
-                ? <PlaceholderMode locale={locale} title={locale === "vi" ? "Mode 2 đang được đặt cho workflow nâng cao" : "Mode 2 reserved for advanced workflows"} subtitle={locale === "vi" ? "Mở rộng sau" : "Coming later"} points={[
-                locale === "vi" ? "Dashboard xem trước nhiều thiết bị" : "Dashboard for multiple devices",
-                locale === "vi" ? "Đồng bộ dữ liệu theo mẫu template" : "Template-based data sync",
-                locale === "vi" ? "Lịch chạy tự động theo ca làm việc" : "Shift-based scheduling",
-              ]} />
-                : <PlaceholderMode locale={locale} title={locale === "vi" ? "Mode 3 đang được đặt cho dashboard bảo trì" : "Mode 3 reserved for maintenance dashboard"} subtitle={locale === "vi" ? "Mở rộng sau" : "Coming later"} points={[
-                locale === "vi" ? "Chẩn đoán kết nối và log nâng cao" : "Advanced connection diagnostics",
-                locale === "vi" ? "Thư viện giao diện cho từng loại màn hình" : "Screen-specific UI library",
-                locale === "vi" ? "Quản lý preset và profile vận hành" : "Preset and operating profile manager",
-              ]} />}
+            )}
           </div>
         </div>
       </div>

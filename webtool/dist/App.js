@@ -36,13 +36,23 @@ const initialFabricFields = [
     { id: "fabricNote", label: "Ghi chú", value: "T4" },
 ];
 const screenModes = [
-    { key: "image", label: "Hình ảnh", description: "Hiển thị ảnh đơn sắc", modeValue: 0 },
+    {
+        key: "clock",
+        label: "Đồng hồ",
+        description: "Đồng hồ thời gian",
+        modeValue: 0,
+    },
     { key: "calendar", label: "Lịch", description: "Lịch cơ bản", modeValue: 1 },
-    { key: "clock", label: "Đồng hồ", description: "Đồng hồ thời gian", modeValue: 2 },
     {
         key: "calendarAnalog",
-        label: "Lịch + đồng hồ",
+        label: "Lịch & đồng hồ",
         description: "Lịch và đồng hồ kim",
+        modeValue: 2,
+    },
+    {
+        key: "image",
+        label: "Hình ảnh",
+        description: "Hiển thị ảnh đơn sắc",
         modeValue: 3,
     },
     { key: "fabric", label: "Thẻ kho", description: "Thẻ kho vải", modeValue: 4 },
@@ -127,7 +137,9 @@ function applyDithering(imageData, ditherType, intensity) {
         for (let y = 0; y < height; y += 1) {
             for (let x = 0; x < width; x += 1) {
                 const index = (y * width + x) * 4;
-                const oldGray = Math.round(0.299 * output[index] + 0.587 * output[index + 1] + 0.114 * output[index + 2]);
+                const oldGray = Math.round(0.299 * output[index] +
+                    0.587 * output[index + 1] +
+                    0.114 * output[index + 2]);
                 const newGray = oldGray < 128 ? 0 : 255;
                 const error = (oldGray - newGray) * intensity;
                 output[index] = newGray;
@@ -163,8 +175,11 @@ function applyDithering(imageData, ditherType, intensity) {
         for (let y = 0; y < height; y += 1) {
             for (let x = 0; x < width; x += 1) {
                 const index = (y * width + x) * 4;
-                const oldGray = Math.round(0.299 * output[index] + 0.587 * output[index + 1] + 0.114 * output[index + 2]);
-                const threshold = (ditherMatrix[y % matrixSize][x % matrixSize] / (matrixSize * matrixSize)) *
+                const oldGray = Math.round(0.299 * output[index] +
+                    0.587 * output[index + 1] +
+                    0.114 * output[index + 2]);
+                const threshold = (ditherMatrix[y % matrixSize][x % matrixSize] /
+                    (matrixSize * matrixSize)) *
                     255 *
                     intensity;
                 const newGray = oldGray < threshold ? 0 : 255;
@@ -235,10 +250,11 @@ function App() {
     const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()));
     const [deviceName, setDeviceName] = useState("Chưa kết nối");
     const [connected, setConnected] = useState(false);
-    const [statusLines, setStatusLines] = useState(["Hệ thống sẵn sàng."]);
+    const [statusLines, setStatusLines] = useState([
+        "Hệ thống sẵn sàng.",
+    ]);
     const [progress, setProgress] = useState(0);
     const [imageFile, setImageFile] = useState(null);
-    const [imageCode, setImageCode] = useState("");
     const [currentScreenMode, setCurrentScreenMode] = useState("clock");
     const [imageParams, setImageParams] = useState(initialImageParams);
     const [fabricFields, setFabricFields] = useState(initialFabricFields);
@@ -256,19 +272,23 @@ function App() {
         detail: "",
     });
     const bluetoothAvailable = useMemo(() => typeof navigator !== "undefined" && "bluetooth" in navigator, []);
-    const currentModeConfig = useMemo(() => screenModes.find((mode) => mode.key === currentScreenMode) || screenModes[0], [currentScreenMode]);
+    const currentModeConfig = useMemo(() => screenModes.find((mode) => mode.key === currentScreenMode) ||
+        screenModes[0], [currentScreenMode]);
     const getScreenModeLabel = (mode) => {
         const labels = {
             image: locale === "vi" ? "Hình ảnh" : "Image",
             calendar: locale === "vi" ? "Lịch" : "Calendar",
             clock: locale === "vi" ? "Đồng hồ" : "Clock",
-            calendarAnalog: locale === "vi" ? "Lịch + đồng hồ" : "Calendar + clock",
+            calendarAnalog: locale === "vi" ? "Lịch & đồng hồ" : "Calendar & clock",
             fabric: locale === "vi" ? "Thẻ kho" : "Fabric card",
         };
         return labels[mode];
     };
     const appendStatus = (message) => {
-        setStatusLines((prev) => [...prev, `[${new Date().toLocaleTimeString("vi-VN")}] ${message}`]);
+        setStatusLines((prev) => [
+            ...prev,
+            `[${new Date().toLocaleTimeString("vi-VN")}] ${message}`,
+        ]);
         console.log(message);
     };
     const setLoading = (title, detail) => {
@@ -429,7 +449,6 @@ function App() {
         const image = await createImageBitmap(file);
         const resized = resizeImage(image, DISPLAY_WIDTH, DISPLAY_HEIGHT);
         const epdData = convertImageToEPDData(resized, imageParams);
-        setImageCode(imageDataToString(epdData));
         return epdData;
     };
     const writeImageData = async (epdData, chunkSize) => {
@@ -443,7 +462,11 @@ function App() {
         while (offset < epdData.length) {
             const size = Math.min(chunkSize, epdData.length - offset);
             const chunk = epdData.slice(offset, offset + size);
-            await sendDataCommand(CMD_WRITE_DATA, [(offset >> 8) & 0xff, offset & 0xff, ...chunk]);
+            await sendDataCommand(CMD_WRITE_DATA, [
+                (offset >> 8) & 0xff,
+                offset & 0xff,
+                ...chunk,
+            ]);
             offset += size;
             const percent = Math.round((offset / epdData.length) * 100);
             setProgress(percent);
@@ -459,9 +482,14 @@ function App() {
             return;
         }
         try {
-            const bluetooth = navigator.bluetooth;
+            const bluetooth = navigator
+                .bluetooth;
             const device = (await bluetooth.requestDevice({
-                filters: [{ namePrefix: "IOT-EINK" }, { namePrefix: "DLG" }, { namePrefix: "EINK" }],
+                filters: [
+                    { namePrefix: "IOT-EINK" },
+                    { namePrefix: "DLG" },
+                    { namePrefix: "EINK" },
+                ],
                 optionalServices: [SERVICE_UUID],
             }));
             deviceRef.current = device;
@@ -491,7 +519,8 @@ function App() {
                 resetConnection();
             });
             const service = await server.getPrimaryService(SERVICE_UUID);
-            controlCharacteristicRef.current = await service.getCharacteristic(CHARACTERISTIC_UUID);
+            controlCharacteristicRef.current =
+                await service.getCharacteristic(CHARACTERISTIC_UUID);
             dataCharacteristicRef.current = await service.getCharacteristic(DATA_CHARACTERISTIC_UUID);
             setConnected(true);
             appendStatus("Kết nối thành công.");
@@ -567,103 +596,12 @@ function App() {
             }
         });
     };
-    const handleGenerateCode = async () => {
-        if (!imageFile) {
-            appendStatus("Vui lòng chọn một hình ảnh.");
-            return;
-        }
-        await runBusyTask("Đang xử lý ảnh", "Tạo mã EPD từ hình ảnh đã chọn", async () => {
-            try {
-                await prepareImageData(imageFile);
-                appendStatus("Đã tạo mã hình ảnh thành công.");
-            }
-            catch (error) {
-                appendStatus(`Tạo mã thất bại: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-    };
-    const handleWriteImage = async () => {
-        if (!imageFile) {
-            appendStatus("Vui lòng chọn một hình ảnh.");
-            return;
-        }
-        await runBusyTask("Đang tải ảnh", "Ghi dữ liệu ảnh vào bộ nhớ tạm của thiết bị", async () => {
-            try {
-                const epdData = await prepareImageData(imageFile);
-                setProgress(0);
-                await writeImageData(epdData, imageParams.mtu - 3);
-                appendStatus("Đã ghi dữ liệu hình ảnh thành công.");
-            }
-            catch (error) {
-                appendStatus(`Ghi ảnh thất bại: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-    };
-    const handleDisplayImage = async () => {
-        await runBusyTask("Đang hiển thị ảnh", "Làm mới màn hình và hiển thị dữ liệu ảnh hiện có", async () => {
-            try {
-                await sendDataCommand(CMD_DISPLAY_IMAGE);
-                await delay(200);
-                await sendCommand(0xe2);
-                setCurrentScreenMode("image");
-                appendStatus("Đã hiển thị hình ảnh.");
-            }
-            catch (error) {
-                appendStatus(`Hiển thị ảnh thất bại: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-    };
-    const handleSaveImage = async () => {
-        await runBusyTask("Đang lưu Flash", "Ghi hình ảnh hiện tại vào Flash", async () => {
-            try {
-                await sendDataCommand(CMD_SAVE_IMAGE);
-                appendStatus("Đã gửi lệnh lưu vào Flash.");
-            }
-            catch (error) {
-                appendStatus(`Lưu Flash thất bại: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-    };
-    const handleClear = async () => {
-        await runBusyTask("Đang xóa màn hình", "Gửi lệnh xóa nội dung hiển thị", async () => {
-            try {
-                await sendDataCommand(CMD_CLEAR_DISPLAY, [0xff]);
-                appendStatus("Đã xóa nội dung hiển thị.");
-            }
-            catch (error) {
-                appendStatus(`Xóa màn hình thất bại: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-    };
-    const handleUploadEditedCode = async () => {
-        if (!imageCode.trim()) {
-            appendStatus("Cần có mã hình ảnh trước khi tải lên.");
-            return;
-        }
-        await runBusyTask("Đang tải mã đã sửa", "Phân tích và đẩy mã hình ảnh đã chỉnh sửa lên thiết bị", async () => {
-            try {
-                const epdData = stringToImageData(imageCode);
-                setProgress(0);
-                await sendScreenMode("image");
-                await delay(300);
-                await writeImageData(epdData, imageParams.mtu - 3);
-                await sendDataCommand(CMD_DISPLAY_IMAGE);
-                await sendDataCommand(CMD_SAVE_IMAGE);
-                await delay(800);
-                await sendCommand(0xe2);
-                appendStatus("Đã tải lên mã hình ảnh đã chỉnh sửa.");
-            }
-            catch (error) {
-                appendStatus(`Tải mã đã sửa thất bại: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        });
-    };
     const handleSendAll = async () => {
         if (!imageFile) {
             appendStatus("Vui lòng chọn một hình ảnh.");
             return;
         }
-        await runBusyTask("Đang chạy quy trình đầy đủ", "Xử lý ảnh, ghi dữ liệu, hiển thị và lưu Flash", async () => {
+        await runBusyTask("Loading...", "Xử lý ảnh, ghi dữ liệu, hiển thị và lưu thiết bị", async () => {
             try {
                 const epdData = await prepareImageData(imageFile);
                 setProgress(0);
@@ -704,24 +642,36 @@ function App() {
             React.createElement(TopBar, { theme: theme, locale: locale, sidebarOpen: sidebarOpen, onMenuToggle: () => setSidebarOpen((prev) => !prev), onThemeToggle: () => setTheme((prev) => (prev === "light" ? "dark" : "light")), onLocaleToggle: () => setLocale((prev) => (prev === "vi" ? "en" : "vi")) }),
             React.createElement("div", { className: "workspace-shell" },
                 React.createElement(ModeRail, { workspaceMode: workspaceMode, locale: locale, open: sidebarOpen, onClose: () => setSidebarOpen(false), onModeChange: setWorkspaceMode }),
-                React.createElement("div", { className: "workspace-main" }, workspaceMode === "mode-1"
-                    ? (React.createElement("div", { className: "workspace-grid" },
-                        React.createElement(ScreenControlPanel, { locale: locale, connected: connected, currentTime: currentTime, deviceName: deviceName, bluetoothAvailable: bluetoothAvailable, currentScreenMode: currentScreenMode, rotationEnabled: rotationEnabled, rotationIntervalSec: rotationIntervalSec, rotationSelection: rotationSelection, onConnect: () => void handleConnect(), onDisconnect: handleDisconnect, onSyncTime: () => void handleSyncTime(), onOpenFabricModal: () => setFabricModalOpen(true), onModeSelect: (mode) => void runBusyTask("Đang chuyển màn hình", `Đang chuyển sang ${screenModes.find((item) => item.key === mode)?.label || mode}`, async () => {
-                                await sendScreenMode(mode);
-                            }), onRotationToggle: toggleRotationSelection, onRotationIntervalChange: setRotationIntervalSec, onRotationStart: handleStartRotation, onRotationStop: () => stopRotation() }),
-                        React.createElement(ImageWorkspace, { locale: locale, connected: connected, progress: progress, imageFile: imageFile, imageCode: imageCode, imageParams: imageParams, previewRef: previewRef, onFileChange: onImageFileChange, onFileDrop: onImageFileDrop, onImageCodeChange: setImageCode, onImageParamChange: updateImageParam, onResetImageParams: resetImageParams, onSendAll: () => void handleSendAll(), onUploadEditedCode: () => void handleUploadEditedCode() }),
-                        React.createElement(StatusPanel, { locale: locale, connected: connected, statusText: statusText })))
-                    : workspaceMode === "mode-2"
-                        ? React.createElement(PlaceholderMode, { locale: locale, title: locale === "vi" ? "Mode 2 đang được đặt cho workflow nâng cao" : "Mode 2 reserved for advanced workflows", subtitle: locale === "vi" ? "Mở rộng sau" : "Coming later", points: [
-                                locale === "vi" ? "Dashboard xem trước nhiều thiết bị" : "Dashboard for multiple devices",
-                                locale === "vi" ? "Đồng bộ dữ liệu theo mẫu template" : "Template-based data sync",
-                                locale === "vi" ? "Lịch chạy tự động theo ca làm việc" : "Shift-based scheduling",
-                            ] })
-                        : React.createElement(PlaceholderMode, { locale: locale, title: locale === "vi" ? "Mode 3 đang được đặt cho dashboard bảo trì" : "Mode 3 reserved for maintenance dashboard", subtitle: locale === "vi" ? "Mở rộng sau" : "Coming later", points: [
-                                locale === "vi" ? "Chẩn đoán kết nối và log nâng cao" : "Advanced connection diagnostics",
-                                locale === "vi" ? "Thư viện giao diện cho từng loại màn hình" : "Screen-specific UI library",
-                                locale === "vi" ? "Quản lý preset và profile vận hành" : "Preset and operating profile manager",
-                            ] })))),
+                React.createElement("div", { className: "workspace-main" }, workspaceMode === "mode-1" ? (React.createElement("div", { className: "workspace-grid" },
+                    React.createElement(ScreenControlPanel, { locale: locale, connected: connected, currentTime: currentTime, deviceName: deviceName, bluetoothAvailable: bluetoothAvailable, currentScreenMode: currentScreenMode, rotationEnabled: rotationEnabled, rotationIntervalSec: rotationIntervalSec, rotationSelection: rotationSelection, onConnect: () => void handleConnect(), onDisconnect: handleDisconnect, onSyncTime: () => void handleSyncTime(), onOpenFabricModal: () => setFabricModalOpen(true), onModeSelect: (mode) => void runBusyTask("Đang chuyển màn hình", `Đang chuyển sang ${screenModes.find((item) => item.key === mode)?.label || mode}`, async () => {
+                            await sendScreenMode(mode);
+                        }), onRotationToggle: toggleRotationSelection, onRotationIntervalChange: setRotationIntervalSec, onRotationStart: handleStartRotation, onRotationStop: () => stopRotation() }),
+                    React.createElement(ImageWorkspace, { locale: locale, connected: connected, progress: progress, imageFile: imageFile, imageParams: imageParams, previewRef: previewRef, onFileChange: onImageFileChange, onFileDrop: onImageFileDrop, onImageParamChange: updateImageParam, onResetImageParams: resetImageParams, onSendAll: () => void handleSendAll() }),
+                    React.createElement(StatusPanel, { locale: locale, connected: connected, statusText: statusText }))) : workspaceMode === "mode-2" ? (React.createElement(PlaceholderMode, { locale: locale, title: locale === "vi"
+                        ? "Mode 2 đang được đặt cho workflow nâng cao"
+                        : "Mode 2 reserved for advanced workflows", subtitle: locale === "vi" ? "Mở rộng sau" : "Coming later", points: [
+                        locale === "vi"
+                            ? "Dashboard xem trước nhiều thiết bị"
+                            : "Dashboard for multiple devices",
+                        locale === "vi"
+                            ? "Đồng bộ dữ liệu theo mẫu template"
+                            : "Template-based data sync",
+                        locale === "vi"
+                            ? "Lịch chạy tự động theo ca làm việc"
+                            : "Shift-based scheduling",
+                    ] })) : (React.createElement(PlaceholderMode, { locale: locale, title: locale === "vi"
+                        ? "Mode 3 đang được đặt cho dashboard bảo trì"
+                        : "Mode 3 reserved for maintenance dashboard", subtitle: locale === "vi" ? "Mở rộng sau" : "Coming later", points: [
+                        locale === "vi"
+                            ? "Chẩn đoán kết nối và log nâng cao"
+                            : "Advanced connection diagnostics",
+                        locale === "vi"
+                            ? "Thư viện giao diện cho từng loại màn hình"
+                            : "Screen-specific UI library",
+                        locale === "vi"
+                            ? "Quản lý preset và profile vận hành"
+                            : "Preset and operating profile manager",
+                    ] }))))),
         React.createElement(FabricModal, { locale: locale, open: fabricModalOpen, connected: connected, fabricFields: fabricFields, onClose: () => setFabricModalOpen(false), onChange: updateFabricValue, onSubmit: () => void handleUploadFabric() }),
         React.createElement(LoadingOverlay, { loadingState: loadingState })));
 }
@@ -765,7 +715,7 @@ function ScreenControlPanel(props) {
             image: isVi ? "Hình ảnh" : "Image",
             calendar: isVi ? "Lịch" : "Calendar",
             clock: isVi ? "Đồng hồ" : "Clock",
-            calendarAnalog: isVi ? "Lịch + đồng hồ" : "Calendar + clock",
+            calendarAnalog: isVi ? "Lịch & đồng hồ" : "Calendar & clock",
             fabric: isVi ? "Thẻ kho" : "Fabric card",
         };
         return labels[mode];
