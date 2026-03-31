@@ -3,9 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "homepage": "https://T-Anh17.github.io/eink_da14585_104x212/",
   "scripts": {
     "start": "node ./scripts/start.mjs",
-    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.json"
+    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d . --src \"{index.html,style.css,dist/**}\""
   },
   "dependencies": {
     "react": "^18.3.1",
